@@ -173,7 +173,7 @@ function getCommonAttr(comp, attr) {
 
   if (attr==="tF"||attr==="tC") return "temperature";
   if (attr === "total_act") return "aenergy";
-  if (attr === "total_act_ret") return "ret_energy";
+  if (attr === "total_act_ret") return "ret_aenergy";
   if (attr.indexOf("_current") != -1) return "current";
   if (attr.indexOf("_voltage") != -1) return "voltage";
   if (attr.indexOf("_freq") != -1) return "freq";
@@ -181,7 +181,7 @@ function getCommonAttr(comp, attr) {
   if (attr.indexOf("_act_power") != -1) return "apower";
   if (attr.indexOf("_aprt_power") != -1) return "aprt_power";
   if (attr.indexOf("_act_energy") != -1) return "aenergy";
-  if (attr.indexOf("_ret_energy") != -1) return "ret_energy";
+  if (attr.indexOf("_ret_aenergy") != -1) return "ret_energy";
 
   return attr;
 }
