@@ -16,6 +16,7 @@ function createCounterRuntime(options = {}) {
         ]),
         kvsValues: options.kvsValues,
         kvsSetResults: options.kvsSetResults,
+        publishResult: options.publishResult,
         componentStatus: function (topic) {
             if (topic === "em" || topic === "em:0") {
                 return { total_act_power: power };
@@ -256,4 +257,30 @@ test("uses the configured display name without changing counter identity", funct
     assert.equal(payload.name, "Basement meter Saldierend Import");
     assert.equal(payload.uniq_id, "shellypro3em-test_sald_import");
     assert.equal(payload.dev.name, "Basement meter");
+});
+
+test("retries retained counter publication after an MQTT publish failure", function () {
+    let acceptsPublishes = true;
+    let runtime = createCounterRuntime({
+        publishResult: function () { return acceptsPublishes; }
+    });
+
+    runtime.tick(1000, 3600);
+    acceptsPublishes = false;
+    runtime.tick(2000, 3600);
+    let failedCount = runtime.publishes.filter(function (publish) {
+        return publish.topic.endsWith("/energy_counter/consumed") ||
+            publish.topic.endsWith("/energy_counter/returned");
+    }).length;
+
+    acceptsPublishes = true;
+    runtime.tick(3000, 0);
+
+    assert.equal(
+        runtime.publishes.filter(function (publish) {
+            return publish.topic.endsWith("/energy_counter/consumed") ||
+                publish.topic.endsWith("/energy_counter/returned");
+        }).length,
+        failedCount + 2
+    );
 });

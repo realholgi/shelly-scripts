@@ -70,8 +70,9 @@ export function createShellyRuntime(name, options = {}) {
         MQTT: {
             isConnected: function () { return mqttConnected; },
             publish: function (topic, payload, qos, retain) {
-                publishes.push({ topic: topic, payload: payload, qos: qos, retain: retain });
-                return true;
+                let publish = { topic: topic, payload: payload, qos: qos, retain: retain };
+                publishes.push(publish);
+                return options.publishResult ? options.publishResult(publish) : true;
             },
             setConnectHandler: function (handler) { connectHandler = handler; },
             setDisconnectHandler: function (handler) { disconnectHandler = handler; }

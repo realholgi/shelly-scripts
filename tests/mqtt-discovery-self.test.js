@@ -377,3 +377,39 @@ test("discovers only Fahrenheit values when configured for Fahrenheit", function
         null
     );
 });
+
+test("uses configured custom units for extended voltage inputs", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "input") return null;
+        if (topic === "input:0") return { xvoltage: 24000 };
+        return undefined;
+    }, {
+        componentConfig: function (topic) {
+            if (topic === "input:0") return { xvoltage: { unit: "mV" } };
+            return undefined;
+        }
+    });
+
+    runDiscoveryCycle(runtime);
+
+    let payload = runtime.entityPayload(
+        "homeassistant/sensor/" + mac + "/input0-xvoltage/config"
+    );
+    assert.equal(payload.name, "X-Voltage");
+    assert.equal(payload.unit_of_meas, "mV");
+});
+
+test("does not publish periodic component status while MQTT is disconnected", function () {
+    let runtime = createDiscoveryRuntime(function () {
+        return undefined;
+    });
+
+    runtime.runTimers(1, function (timer) { return timer.interval === 60000; });
+
+    assert.equal(
+        runtime.publishes.filter(function (publish) {
+            return publish.topic === "shelly-test/status/wifi";
+        }).length,
+        0
+    );
+});
