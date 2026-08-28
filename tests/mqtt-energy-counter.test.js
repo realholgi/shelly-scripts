@@ -1,104 +1,42 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import test from "node:test";
-import vm from "node:vm";
-import { fileURLToPath } from "node:url";
+import { createShellyRuntime } from "./shelly-test-harness.js";
 
-const testDirectory = dirname(fileURLToPath(import.meta.url));
-const scriptSource = readFileSync(
-    join(testDirectory, "..", "scripts", "mqtt-energy-counter.js"),
-    "utf8"
-);
+const scriptName = "mqtt-energy-counter.js";
 
-function withSaveEveryCycle() {
-    return scriptSource.replace("saveInterval: 900", "saveInterval: 1");
-}
-
-function createRuntime(source = scriptSource, options = {}) {
-    let now = 0;
+function createCounterRuntime(options = {}) {
     let power = 0;
-    let timerCallback = null;
-    let mqttConfigCalls = 0;
-    let setResults = options.setResults ? options.setResults.slice() : [];
-    let storedValues = options.storedValues || {};
-    let logs = [];
-    let publishes = [];
-    let kvsSets = [];
 
-    let sandbox = {
-        Date: { now: function () { return now; } },
-        JSON: JSON,
-        Math: Math,
-        isNaN: isNaN,
-        print: function (message) { logs.push(message); },
-        MQTT: {
-            isConnected: function () { return true; },
-            publish: function (topic, payload, qos, retain) {
-                publishes.push({ topic: topic, payload: payload, qos: qos, retain: retain });
-                return true;
-            },
-            setConnectHandler: function () {},
-            setDisconnectHandler: function () {}
-        },
-        Shelly: {
-            getComponentStatus: function () {
+    let runtime = createShellyRuntime(scriptName, {
+        transform: options.transform,
+        deviceInfo: { name: "Test meter" },
+        rpcResults: new Map([
+            ["Mqtt.GetConfig", () => [{ topic_prefix: "shellypro3em-test" }, 0, ""]],
+            ["Sys.GetConfig", () => [{ device: { name: "Test meter" } }, 0, ""]]
+        ]),
+        kvsValues: options.kvsValues,
+        kvsSetResults: options.kvsSetResults,
+        componentStatus: function (topic) {
+            if (topic === "em" || topic === "em:0") {
                 return { total_act_power: power };
-            },
-            call: function (method, args, callback) {
-                if (method === "Mqtt.GetConfig") {
-                    mqttConfigCalls++;
-                    callback({ topic_prefix: "shellypro3em-test" }, 0, "");
-                } else if (method === "Sys.GetConfig") {
-                    callback({ device: { name: "Test meter" } }, 0, "");
-                } else if (method === "KVS.Get") {
-                    if (Object.prototype.hasOwnProperty.call(storedValues, args.key)) {
-                        callback({ value: storedValues[args.key] }, 0, "");
-                    } else {
-                        callback(null, 404, "missing");
-                    }
-                } else if (method === "KVS.Set") {
-                    kvsSets.push(args);
-                    let result = setResults.length ? setResults.shift() : { code: 0, message: "" };
-                    callback({}, result.code, result.message);
-                } else {
-                    throw new Error("Unexpected RPC: " + method);
-                }
-            }
-        },
-        Timer: {
-            set: function (interval, repeat, callback) {
-                timerCallback = callback;
-            }
-        }
-    };
-
-    vm.runInNewContext(source, sandbox, { filename: "mqtt-energy-counter.js" });
-
-    return {
-        logs: logs,
-        publishes: publishes,
-        kvsSets: kvsSets,
-        mqttConfigCalls: function () { return mqttConfigCalls; },
-        tick: function (time, nextPower) {
-            now = time;
-            power = nextPower;
-            timerCallback();
-        },
-        latestKvsValue: function (key) {
-            for (let index = kvsSets.length - 1; index >= 0; index--) {
-                if (kvsSets[index].key === key) return kvsSets[index].value;
             }
             return null;
+        }
+    });
+
+    return {
+        ...runtime,
+        tick: function (time, nextPower) {
+            runtime.setNow(time);
+            power = nextPower;
+            runtime.runTimers(1);
         }
     };
 }
 
 test("announces energy and power sensors with Home Assistant discovery", function () {
-    let runtime = createRuntime();
-    let configs = runtime.publishes.filter(function (publish) {
-        return publish.topic.endsWith("/config");
-    });
+    let runtime = createCounterRuntime();
+    let configs = runtime.discoveryPublishes();
 
     assert.equal(configs.length, 3);
     assert.ok(configs.every(function (publish) { return publish.retain === true; }));
@@ -128,7 +66,11 @@ test("announces energy and power sensors with Home Assistant discovery", functio
 });
 
 test("does not integrate the first sample or an interval after invalid power", function () {
-    let runtime = createRuntime(withSaveEveryCycle());
+    let runtime = createCounterRuntime({
+        transform: function (source) {
+            return source.replace("saveInterval: 900", "saveInterval: 1");
+        }
+    });
 
     runtime.tick(1000, 100);
     runtime.tick(2000, 100);
@@ -141,7 +83,13 @@ test("does not integrate the first sample or an interval after invalid power", f
 });
 
 test("uses inverted power for export energy and live power", function () {
-    let runtime = createRuntime(withSaveEveryCycle().replace("invertPower: false", "invertPower: true"));
+    let runtime = createCounterRuntime({
+        transform: function (source) {
+            return source
+                .replace("saveInterval: 900", "saveInterval: 1")
+                .replace("invertPower: false", "invertPower: true");
+        }
+    });
 
     runtime.tick(1000, 100);
     runtime.tick(2000, 100);
@@ -155,9 +103,15 @@ test("uses inverted power for export energy and live power", function () {
 });
 
 test("persists sub-Wh energy and recovers after a KVS save failure", function () {
-    let runtime = createRuntime(withSaveEveryCycle(), {
-        storedValues: { EnergyConsumedKWh: "1.234567", EnergyReturnedKWh: "0" },
-        setResults: [{ code: 500, message: "write failed" }, { code: 0, message: "" }]
+    let runtime = createCounterRuntime({
+        transform: function (source) {
+            return source.replace("saveInterval: 900", "saveInterval: 1");
+        },
+        kvsValues: {
+            EnergyConsumedKWh: "1.234567",
+            EnergyReturnedKWh: "0"
+        },
+        kvsSetResults: [{ code: 500, message: "write failed" }]
     });
 
     runtime.tick(1000, 100);
@@ -173,8 +127,18 @@ test("persists sub-Wh energy and recovers after a KVS save failure", function ()
 });
 
 test("rejects invalid configuration before initializing MQTT", function () {
-    let runtime = createRuntime(scriptSource.replace("updateInterval: 1000", "updateInterval: 0"));
+    let runtime = createCounterRuntime({
+        transform: function (source) {
+            return source.replace("updateInterval: 1000", "updateInterval: 0");
+        }
+    });
 
-    assert.equal(runtime.mqttConfigCalls(), 0);
+    assert.equal(runtime.kvsSets.length, 0);
+    assert.equal(
+        runtime.publishes.filter(function (publish) {
+            return publish.topic.endsWith("/config");
+        }).length,
+        0
+    );
     assert.ok(runtime.logs.includes("ERROR: Invalid configuration. Script stopped."));
 });
