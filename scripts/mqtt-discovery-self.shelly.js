@@ -80,7 +80,10 @@ function discoveryDevice(mac) {
   device.hw = "gen " + Shelly.getDeviceInfo().gen;
 
   if (CONFIG.report_ip) {
-    device.cu = "http://" + Shelly.getComponentStatus("wifi").sta_ip;
+    let wifiStatus = Shelly.getComponentStatus("wifi");
+    if (wifiStatus && wifiStatus.sta_ip) {
+      device.cu = "http://" + wifiStatus.sta_ip;
+    }
   }
 
   return device;
@@ -123,11 +126,10 @@ function getUniqueId(info) {
  */
 function getUnits(info) {
 
-  if (info.attr_common == "xvoltage") {
-    return Shelly.getComponentConfig(info.topic).xvoltage.unit;
-  }
-  if (info.attr_common == "xpercent") {
-    return Shelly.getComponentConfig(info.topic).xpercent.unit;
+  if (info.attr_common == "xvoltage" || info.attr_common == "xpercent") {
+    let componentConfig = Shelly.getComponentConfig(info.topic);
+    let customAttr = componentConfig && componentConfig[info.attr_common];
+    return customAttr ? customAttr.unit : null;
   }
 
   let attr = info.attr_common;
@@ -269,8 +271,10 @@ function discoveryEntity(topic, info) {
       pload["unit_of_meas"] = getUnits(info);
       break;
     case "cover":
-      let slat = Shelly.getComponentConfig(info.topic).slat;
-      let pos = Shelly.getComponentStatus(info.topic).pos_control;
+      let coverConfig = Shelly.getComponentConfig(info.topic);
+      let coverStatus = Shelly.getComponentStatus(info.topic);
+      let slat = coverConfig ? coverConfig.slat : null;
+      let pos = coverStatus ? coverStatus.pos_control : false;
 
       pload["cmd_t"] = topic + "/command/" + info.topic;
       pload["pl_open"] = "open";
@@ -308,6 +312,7 @@ function discoveryEntity(topic, info) {
   if (info.forcedisabled || (!info.addon && CONFIG.disable_minor_entities && isDisabled(info.attr_common))) {
     if (!info.forceenabled) pload["en"] = false;
   }
+  info.attr_common = attr_orig;
   return { "domain": domain, "subtopic": info.topic.split(":").join("") + "-" + info.attr, "data": pload }
 }
 
