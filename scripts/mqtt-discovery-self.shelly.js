@@ -26,7 +26,7 @@ const COMPONENT_TYPES = ["switch", "pm1", "wifi", "em", "em1", "emdata", "em1dat
 // Format: d=devclass, n=name, u=unit, dm=domain, diag=diagnostic, dis=disabled, na=not supported attribute
 const META = {
   apower: {d:"power",n:"Active Power",u:"W",dm:"sensor"},
-  aprt_power: {d:"apparent_power",n:"Aparent Power",u:"VA",dm:"sensor"},
+  aprt_power: {d:"apparent_power",n:"Apparent Power",u:"VA",dm:"sensor"},
   voltage: {d:"voltage",n:"Voltage",u:"V",dm:"sensor",dis:1},
   xvoltage: {d:null,n:"X-Voltage",u:null,dm:"sensor",dis:1},
   freq: {d:"frequency",n:"Frequency",u:"Hz",dm:"sensor",dis:1},
@@ -181,7 +181,7 @@ function getCommonAttr(comp, attr) {
   if (attr.indexOf("_act_power") != -1) return "apower";
   if (attr.indexOf("_aprt_power") != -1) return "aprt_power";
   if (attr.indexOf("_act_energy") != -1) return "aenergy";
-  if (attr.indexOf("_ret_aenergy") != -1) return "ret_energy";
+  if (attr.indexOf("_act_ret_energy") != -1) return "ret_aenergy";
 
   return attr;
 }
@@ -288,7 +288,6 @@ function discoveryEntity(topic, info) {
       if (pos && slat && slat.enable) {
         pload["tilt_cmd_tpl"] = "slat_pos,{{ tilt_position }}";
         pload["tilt_cmd_t"] = pload["cmd_t"];
-        pload["tilt_cmd_t"] = pload["pos_t"];
         pload["tilt_status_t"] = pload["stat_t"];
         pload["tilt_status_tpl"] = "{{ value_json.slat_pos }}";
         pload["pl_stop_tilt"] = pload["pl_stop"];
@@ -345,7 +344,7 @@ function precollect() {
       for (let datattr in status) {
         if (!isSupportedAttr(getCommonAttr(comptype, datattr))) continue;
         if (datattr == "tC" && CONFIG.temperature_unit != "C") continue;
-        if (datattr == "tK" && CONFIG.temperature_unit != "K") continue;
+        if (datattr == "tF" && CONFIG.temperature_unit != "F") continue;
 
         report_arr.push({comp : comptype, ix: -1, attr: datattr, topic: comptype});
       }
@@ -443,15 +442,26 @@ function mqttDiscovery() {
     return true;
   }
 
-  if (CONFIG.custom_names.channels && !info.addons || CONFIG.custom_names.addon && info.addons && Shelly.getComponentConfig(info.topic).name.length > 0) {
-    info.name = Shelly.getComponentConfig(info.topic).name;
+  let componentConfig = Shelly.getComponentConfig(info.topic);
+  let useCustomName =
+    (!info.addon && CONFIG.custom_names.channels) ||
+    (info.addon && CONFIG.custom_names.addons);
+
+  if (useCustomName && componentConfig && componentConfig.name) {
+    info.name = componentConfig.name;
   }
 
   info.mac = normalizeMacAddress(CONFIG.fake_macaddress ? CONFIG.fake_macaddress : Shelly.getDeviceInfo().mac);
   info.attr_common = getCommonAttr(info.comp, info.attr);
-  if (Shelly.getComponentConfig("sys").ui_data.consumption_types && Shelly.getComponentConfig("sys").ui_data.consumption_types[info.ix]) info.altdomain = Shelly.getComponentConfig("sys").ui_data.consumption_types[info.ix];
 
-  const cfg = Shelly.getComponentConfig(info.topic)["x" + info.attr_common];
+  let sysConfig = Shelly.getComponentConfig("sys");
+  if (sysConfig && sysConfig.ui_data && sysConfig.ui_data.consumption_types &&
+      sysConfig.ui_data.consumption_types[info.ix]) {
+    info.altdomain = sysConfig.ui_data.consumption_types[info.ix];
+  }
+
+  componentConfig = componentConfig || {};
+  const cfg = componentConfig["x" + info.attr_common];
   if ((info.attr_common === "percent" || info.attr_common === "voltage") && cfg && cfg.expr) {
     info.forcediagnostic = true;
     info.forcedisabled = true;
