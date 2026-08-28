@@ -22,7 +22,7 @@ Link to the script: [link](./mqtt-energy-counter.js)
 | Variable | Default Value | Description |
 | --- | --- | --- |
 | `updateInterval` | `1000` | Calculation interval in milliseconds |
-| `enablePersistence` | `true` | Saves the counters in Shelly KVS so they survive script restarts |
+| `enablePersistence` | `true` | Saves the counters in Shelly KVS so they survive script restarts; each checkpoint includes sub-Wh energy |
 | `saveInterval` | `900` | Number of calculation cycles between KVS saves |
 | `mqttPrefix` | `"homeassistant"` | Home Assistant MQTT Discovery topic prefix |
 | `publishPower` | `true` | Publishes the live balanced power sensor |
@@ -30,3 +30,7 @@ Link to the script: [link](./mqtt-energy-counter.js)
 | `deviceName` | `""` | Home Assistant device name; an empty value uses the Shelly device name |
 
 The persisted counters use the KVS keys `EnergyConsumedKWh` and `EnergyReturnedKWh`. Disable persistence to start both counters at zero on every script start.
+
+## Precision and persistence
+
+The Home Assistant energy counters publish in 1 Wh (`0.001 kWh`) increments. KVS checkpoints retain the complete counter value to `0.001 Wh` precision, including the sub-Wh remainder accumulated since the previous whole-Wh increment. A sudden power loss can still lose energy measured after the last checkpoint.
