@@ -1,6 +1,6 @@
 /**
  * MQTT Discovery for Self
- * Version: 5.2.2
+ * Version: 5.2.3
  */
 
 let CONFIG = {
@@ -104,7 +104,7 @@ function discoveryDevice(mac) {
   */
 function getValTpl(info) {
 
-  if (info.attr_common == "aenergy" || info.attr_common == "ret_aenergy") return "{{ value_json." + info.attr + ".total }}";
+  if (info.attr == "aenergy" || info.attr == "ret_aenergy") return "{{ value_json." + info.attr + ".total }}";
   if (info.attr == "output") return "{{ 'on' if value_json.output else 'off' }}";
   if (info.attr == "temperature") return "{{ value_json." + info.attr + ".t" + CONFIG.temperature_unit + " }}";
   if (info.attr == "state") return "{{ value_json." + info.attr + " if value_json." + info.attr + " else false }}";
