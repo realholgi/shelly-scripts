@@ -1,4 +1,8 @@
 # Changelog
+## Unreleased
+* `mqtt-energy-counter`
+  - uses the Shelly MAC address as its Home Assistant MQTT Discovery device identifier, so its entities join the device created by `mqtt-discovery-self`.
+
 ## v5.1.0
 * Added `mqtt-energy-counter` script for balanced Shelly Pro 3EM energy counters and Home Assistant MQTT Discovery.
 
