@@ -578,6 +578,16 @@ function reportWifiToMQTT() {
 // This will also set up a timer to report WiFi status every 60 seconds
 let timer_handle = Timer.set(CONFIG.components_refresh_period * 1000, true, reportWifiToMQTT, null);
 
+function reportEmdataToMQTT() {
+  if (!MQTT.isConnected()) return;
+
+  mqttPublishComponentData("emdata:0");
+}
+
+if (Shelly.getDeviceInfo().app === "Pro3EM") {
+  Timer.set(1000, true, reportEmdataToMQTT, null);
+}
+
 
 // Report Discovery on MQTT connection
 MQTT.setConnectHandler(

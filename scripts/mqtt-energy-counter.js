@@ -181,8 +181,7 @@ function AnnounceHA() {
         "cns": [["mac", SHELLY_MAC]],
         "name": DEVICE_NAME,
         "mf": "Shelly",
-        "mdl": "Shelly Pro 3EM",
-        "sw": "Net Metering v" + VERSION
+        "mdl": "Shelly Pro 3EM"
     };
 
     let okImport = MQTT.publish(

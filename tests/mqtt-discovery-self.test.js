@@ -19,7 +19,7 @@ function createDiscoveryRuntime(componentStatus, options = {}) {
     ]);
     return createShellyRuntime(scriptName, {
         mqttConnected: false,
-        deviceInfo: deviceInfo,
+        deviceInfo: options.deviceInfo || deviceInfo,
         rpcResults: rpcResults,
         transform: options.transform,
         componentStatus: function (topic) {
@@ -346,6 +346,41 @@ test("publishes configured component status on the periodic refresh timer", func
     assert.equal(publish.qos, 1);
     assert.equal(publish.retain, true);
     assert.deepEqual(JSON.parse(publish.payload), { sta_ip: "192.168.1.42" });
+});
+
+test("publishes total returned active energy every second on Pro 3EM", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "emdata:0") return { total_act_ret: 123.45 };
+        return undefined;
+    }, {
+        deviceInfo: { ...deviceInfo, app: "Pro3EM" }
+    });
+
+    runtime.setMqttConnected(true);
+    runtime.runTimers(1, function (timer) { return timer.interval === 1000; });
+
+    let publish = runtime.publishes.find(function (value) {
+        return value.topic === "shelly-test/status/emdata:0";
+    });
+    assert.equal(publish.qos, 1);
+    assert.equal(publish.retain, true);
+    assert.deepEqual(JSON.parse(publish.payload), { total_act_ret: 123.45 });
+});
+
+test("does not create the emdata timer on other devices", function () {
+    let runtime = createDiscoveryRuntime(function () {
+        return undefined;
+    });
+
+    runtime.setMqttConnected(true);
+    runtime.runTimers(1, function (timer) { return timer.interval === 1000; });
+
+    assert.equal(
+        runtime.publishes.some(function (value) {
+            return value.topic === "shelly-test/status/emdata:0";
+        }),
+        false
+    );
 });
 
 test("discovers only Fahrenheit values when configured for Fahrenheit", function () {

@@ -76,8 +76,7 @@ test("announces energy sensors under the physical Shelly device identity", funct
             cns: [["mac", "b8d62ef00f42"]],
             name: "Test meter",
             mf: "Shelly",
-            mdl: "Shelly Pro 3EM",
-            sw: "Net Metering v5.2.2"
+            mdl: "Shelly Pro 3EM"
         }
     });
 });
