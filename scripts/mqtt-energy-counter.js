@@ -83,6 +83,35 @@ function PublishCounters(force) {
     if (okR) lastPublishedReturned = valR;
 }
 
+function IsPositiveInteger(value) {
+    return typeof value === "number" && isFinite(value) &&
+        value > 0 && Math.floor(value) === value;
+}
+
+function ValidateConfig() {
+    if (!IsPositiveInteger(CONFIG.updateInterval)) {
+        print("ERROR: CONFIG.updateInterval must be a positive integer in milliseconds.");
+        return false;
+    }
+    if (!IsPositiveInteger(CONFIG.saveInterval)) {
+        print("ERROR: CONFIG.saveInterval must be a positive integer.");
+        return false;
+    }
+    if (typeof CONFIG.mqttPrefix !== "string" || CONFIG.mqttPrefix === "" ||
+        CONFIG.mqttPrefix.indexOf("+") !== -1 || CONFIG.mqttPrefix.indexOf("#") !== -1) {
+        print("ERROR: CONFIG.mqttPrefix must be a non-empty MQTT topic prefix without wildcards.");
+        return false;
+    }
+    if (typeof CONFIG.enablePersistence !== "boolean" ||
+        typeof CONFIG.publishPower !== "boolean" ||
+        typeof CONFIG.invertPower !== "boolean" ||
+        typeof CONFIG.deviceName !== "string") {
+        print("ERROR: Boolean CONFIG values and CONFIG.deviceName must have the documented types.");
+        return false;
+    }
+    return true;
+}
+
 // ─────────────────────────────────────────────
 // 2. MQTT Event Handlers
 // ─────────────────────────────────────────────
@@ -102,43 +131,51 @@ MQTT.setDisconnectHandler(function () {
 // 3. Get Device ID / Name and Initialize
 // ─────────────────────────────────────────────
 
-Shelly.call("Mqtt.GetConfig", {}, function (res, err_code, err_msg) {
-    if (!res) {
-        print("ERROR: Mqtt.GetConfig returned null! Code: " + err_code + " | " + err_msg);
-        return;
-    }
+function Initialize() {
+    Shelly.call("Mqtt.GetConfig", {}, function (res, err_code, err_msg) {
+        if (!res) {
+            print("ERROR: Mqtt.GetConfig returned null! Code: " + err_code + " | " + err_msg);
+            return;
+        }
 
-    SHELLY_ID = res.topic_prefix ? res.topic_prefix : null;
+        SHELLY_ID = res.topic_prefix ? res.topic_prefix : null;
 
-    if (!SHELLY_ID) {
-        print("ERROR: No MQTT topic_prefix set. Please check MQTT configuration.");
-        return;
-    }
+        if (!SHELLY_ID) {
+            print("ERROR: No MQTT topic_prefix set. Please check MQTT configuration.");
+            return;
+        }
 
-    print("Shelly ID: " + SHELLY_ID + " | Script v" + VERSION);
+        print("Shelly ID: " + SHELLY_ID + " | Script v" + VERSION);
 
-    if (CONFIG.enablePersistence) {
-        LoadCounters();
-    } else {
-        countersLoaded = true;
-        print("Persistence disabled. Counters start at 0.");
-    }
+        if (CONFIG.enablePersistence) {
+            LoadCounters();
+        } else {
+            countersLoaded = true;
+            print("Persistence disabled. Counters start at 0.");
+        }
 
-    // Resolve the display name, then announce.
-    // Identity (topics, uniq_id, KVS keys) always stays bound to SHELLY_ID,
-    // so the name can be changed later without creating orphaned entities.
-    if (CONFIG.deviceName !== "") {
-        DEVICE_NAME = CONFIG.deviceName;
-        print("Device name (CONFIG): " + DEVICE_NAME);
-        TryAnnounceAndPublish();
-    } else {
-        Shelly.call("Sys.GetConfig", {}, function (sys) {
-            DEVICE_NAME = (sys && sys.device && sys.device.name) ? sys.device.name : SHELLY_ID;
-            print("Device name (Shelly settings): " + DEVICE_NAME);
+        // Resolve the display name, then announce.
+        // Identity (topics, uniq_id, KVS keys) always stays bound to SHELLY_ID,
+        // so the name can be changed later without creating orphaned entities.
+        if (CONFIG.deviceName !== "") {
+            DEVICE_NAME = CONFIG.deviceName;
+            print("Device name (CONFIG): " + DEVICE_NAME);
             TryAnnounceAndPublish();
-        });
-    }
-});
+        } else {
+            Shelly.call("Sys.GetConfig", {}, function (sys) {
+                DEVICE_NAME = (sys && sys.device && sys.device.name) ? sys.device.name : SHELLY_ID;
+                print("Device name (Shelly settings): " + DEVICE_NAME);
+                TryAnnounceAndPublish();
+            });
+        }
+    });
+}
+
+if (ValidateConfig()) {
+    Initialize();
+} else {
+    print("ERROR: Invalid configuration. Script stopped.");
+}
 
 // ─────────────────────────────────────────────
 // 4. Home Assistant Auto-Discovery
