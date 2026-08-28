@@ -67,6 +67,7 @@ export function createShellyRuntime(name, options = {}) {
         Math: Math,
         isNaN: isNaN,
         print: function (message) { logs.push(message); },
+        console: { log: function (message) { logs.push(message); } },
         MQTT: {
             isConnected: function () { return mqttConnected; },
             publish: function (topic, payload, qos, retain) {
@@ -79,8 +80,8 @@ export function createShellyRuntime(name, options = {}) {
         },
         Shelly: {
             getDeviceInfo: function () { return options.deviceInfo; },
-            getComponentStatus: function (topic) {
-                return options.componentStatus ? options.componentStatus(topic) : null;
+            getComponentStatus: function (topic, index) {
+                return options.componentStatus ? options.componentStatus(topic, index) : null;
             },
             getComponentConfig: function (topic) {
                 return options.componentConfig ? options.componentConfig(topic) : null;
@@ -100,6 +101,7 @@ export function createShellyRuntime(name, options = {}) {
             }
         }
     };
+    Object.assign(sandbox, options.globals || {});
 
     vm.runInNewContext(scriptSource(name, options.transform), sandbox, { filename: name });
 
