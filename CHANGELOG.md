@@ -1,4 +1,10 @@
 # Changelog
+## v5.2.2
+* `mqtt-discovery-self`
+  - reruns discovery when the Shelly MQTT configuration changes, refreshing discovery and initial status data under the new topic prefix.
+* CI
+  - runs on Node.js 24 using the v5 Actions runners.
+
 ## v5.2.1
 * `mqtt-discovery-self`
   - reruns discovery when the Shelly MQTT configuration changes, refreshing discovery and initial status data under the new topic prefix.
