@@ -1,6 +1,6 @@
 /**
  * MQTT Shelly Pro 3EM - Net Metering & Home Assistant Auto-Discovery
- * Version: 5.2.2
+ * Version: 5.2.3
  *
  * based on Version: 1.2.0 from https://gist.github.com/mlossin/79e1b29eba6a48466b9078be254a384f
  */

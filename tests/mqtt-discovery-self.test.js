@@ -128,7 +128,7 @@ test("reports energy phases, disables minor entities, and publishes initial data
     );
     assert.equal(energyPayload.dev_cla, "energy");
     assert.equal(energyPayload.stat_cla, "total_increasing");
-    assert.equal(energyPayload.val_tpl, "{{ value_json.a_act_energy.total }}");
+    assert.equal(energyPayload.val_tpl, "{{ value_json.a_act_energy }}");
 
     let voltagePayload = runtime.entityPayload(
         "homeassistant/sensor/" + mac + "/em0-a_voltage/config"
@@ -303,7 +303,7 @@ test("uses the total field for returned phase energy discovery", function () {
     );
     assert.equal(payload.dev_cla, "energy");
     assert.equal(payload.stat_cla, "total_increasing");
-    assert.equal(payload.val_tpl, "{{ value_json.a_act_ret_energy.total }}");
+    assert.equal(payload.val_tpl, "{{ value_json.a_act_ret_energy }}");
 });
 
 test("cleans obsolete output domains before publishing an alternate light entity", function () {

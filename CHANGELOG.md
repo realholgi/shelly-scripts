@@ -1,4 +1,9 @@
 # Changelog
+
+## v5.2.3
+* `mqtt-discovery-self`
+  - fix bug introduced in v5.2.0
+  
 ## v5.2.2
 * `mqtt-discovery-self`
   - reruns discovery when the Shelly MQTT configuration changes, refreshing discovery and initial status data under the new topic prefix.
