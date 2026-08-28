@@ -1,5 +1,6 @@
 /**
 * The script publishes periodically selected component statuses to MQTT.
+* Version: 5.1.0
 * For valid names of components look into `http://shelly_address/rpc/Shelly.GetStatus` page
 * or into status MQTT topic of particular device.
 * Note, not all components are reported by default by Shelly device. For example `wifi` is not.

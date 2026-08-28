@@ -1,3 +1,8 @@
+/**
+ * MQTT Discovery: Scripts Monitor
+ * Version: 5.1.0
+ */
+
 let CONFIG = {
 
   custom_names: {                   // Use custom names from Shelly configuration, for:

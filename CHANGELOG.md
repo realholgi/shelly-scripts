@@ -1,5 +1,5 @@
 # Changelog
-## Unreleased
+## v5.1.0
 * Added `mqtt-energy-counter` script for balanced Shelly Pro 3EM energy counters and Home Assistant MQTT Discovery.
 
 ## v5.0.0

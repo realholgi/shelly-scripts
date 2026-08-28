@@ -1,3 +1,8 @@
+/**
+ * MQTT Discovery for Self
+ * Version: 5.1.0
+ */
+
 let CONFIG = {
 
   temperature_unit: "C",            // C or F - Uppercase!!!
