@@ -160,3 +160,37 @@ test("removes stale power discovery when live power is disabled", function () {
             publish.payload === "" && publish.retain === true;
     }));
 });
+
+test("reannounces discovery and retained counters after an MQTT reconnect", function () {
+    let runtime = createCounterRuntime();
+    let discoveryCount = runtime.discoveryPublishes().length;
+    let counterCount = runtime.publishes.filter(function (publish) {
+        return publish.topic.endsWith("/energy_counter/consumed") ||
+            publish.topic.endsWith("/energy_counter/returned");
+    }).length;
+
+    runtime.fireDisconnect();
+    runtime.setMqttConnected(true);
+
+    assert.equal(runtime.discoveryPublishes().length, discoveryCount + 3);
+    assert.equal(
+        runtime.publishes.filter(function (publish) {
+            return publish.topic.endsWith("/energy_counter/consumed") ||
+                publish.topic.endsWith("/energy_counter/returned");
+        }).length,
+        counterCount + 2
+    );
+});
+
+test("rejects wildcard characters in the discovery topic prefix", function () {
+    let runtime = createCounterRuntime({
+        transform: function (source) {
+            return source.replace('mqttPrefix: "homeassistant"', 'mqttPrefix: "homeassistant/#"');
+        }
+    });
+
+    assert.ok(runtime.logs.includes(
+        "ERROR: CONFIG.mqttPrefix must be a non-empty MQTT topic prefix without wildcards."
+    ));
+    assert.equal(runtime.discoveryPublishes().length, 0);
+});

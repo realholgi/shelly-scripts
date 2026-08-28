@@ -21,6 +21,7 @@ function createDiscoveryRuntime(componentStatus, options = {}) {
         mqttConnected: false,
         deviceInfo: deviceInfo,
         rpcResults: rpcResults,
+        transform: options.transform,
         componentStatus: function (topic) {
             let status = componentStatus(topic);
             if (status !== undefined) return status;
@@ -248,4 +249,43 @@ test("reruns discovery after an eligible configuration change", function () {
     runtime.runTimers(8, function (timer) { return timer.interval === 500; });
 
     assert.ok(runtime.discoveryPublishes().length > publishesBefore);
+});
+
+test("uses the configured fake MAC and default identity when custom names are disabled", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "switch") return null;
+        if (topic === "switch:0") return { output: false };
+        return undefined;
+    }, {
+        transform: function (source) {
+            return source
+                .replace("device: true", "device: false")
+                .replace('fake_macaddress: ""', 'fake_macaddress: "00:11:22:33:44:55"');
+        }
+    });
+
+    runDiscoveryCycle(runtime);
+
+    let payload = runtime.entityPayload(
+        "homeassistant/switch/001122334455/switch0-output/config"
+    );
+    assert.equal(payload.dev.name, "001122334455-PM 3");
+    assert.deepEqual(payload.dev.ids, ["001122334455"]);
+});
+
+test("does not restart discovery for ignored configuration changes", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "switch") return null;
+        if (topic === "switch:0") return { output: false };
+        return undefined;
+    });
+
+    runDiscoveryCycle(runtime);
+    let publishesBefore = runtime.discoveryPublishes().length;
+
+    runtime.fireConfigChanged("switch", true);
+    runtime.fireConfigChanged("mqtt", false);
+    runtime.runTimers(8, function (timer) { return timer.interval === 500; });
+
+    assert.equal(runtime.discoveryPublishes().length, publishesBefore);
 });
