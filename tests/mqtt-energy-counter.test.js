@@ -7,13 +7,18 @@ const scriptName = "mqtt-energy-counter.js";
 function createCounterRuntime(options = {}) {
     let power = 0;
 
+    let rpcResults = new Map([
+        ["Mqtt.GetConfig", () => [{ topic_prefix: "shellypro3em-test" }, 0, ""]],
+        ["Sys.GetConfig", () => [{ device: { name: "Test meter" } }, 0, ""]]
+    ]);
+    if (options.rpcResults) {
+        for (let [method, result] of options.rpcResults) rpcResults.set(method, result);
+    }
+
     let runtime = createShellyRuntime(scriptName, {
         transform: options.transform,
         deviceInfo: { name: "Test meter" },
-        rpcResults: new Map([
-            ["Mqtt.GetConfig", () => [{ topic_prefix: "shellypro3em-test" }, 0, ""]],
-            ["Sys.GetConfig", () => [{ device: { name: "Test meter" } }, 0, ""]]
-        ]),
+        rpcResults: rpcResults,
         kvsValues: options.kvsValues,
         kvsSetResults: options.kvsSetResults,
         publishResult: options.publishResult,
@@ -283,4 +288,33 @@ test("retries retained counter publication after an MQTT publish failure", funct
         }).length,
         failedCount + 2
     );
+});
+
+test("stops initialization when MQTT configuration cannot be read", function () {
+    let runtime = createCounterRuntime({
+        rpcResults: new Map([
+            ["Mqtt.GetConfig", () => [null, 500, "rpc unavailable"]]
+        ])
+    });
+
+    assert.ok(runtime.logs.includes(
+        "ERROR: Mqtt.GetConfig returned null! Code: 500 | rpc unavailable"
+    ));
+    assert.equal(runtime.discoveryPublishes().length, 0);
+    assert.equal(runtime.kvsSets.length, 0);
+});
+
+test("falls back to the MQTT topic prefix when the Shelly name is absent", function () {
+    let runtime = createCounterRuntime({
+        rpcResults: new Map([
+            ["Sys.GetConfig", () => [{}, 0, ""]]
+        ])
+    });
+
+    let importConfig = runtime.discoveryPublishes().find(function (publish) {
+        return publish.topic.endsWith("-import/config");
+    });
+    let payload = JSON.parse(importConfig.payload);
+    assert.equal(payload.name, "shellypro3em-test Saldierend Import");
+    assert.equal(payload.dev.name, "shellypro3em-test");
 });
