@@ -1,5 +1,11 @@
 # Changelog
 
+## v5.2.5
+* `mqtt-discovery-self`
+  - republishes Pro 3EM `emdata:0` status every second, keeping total returned active energy current.
+* `mqtt-energy-counter`
+  - no longer overwrites the Shelly firmware version in shared Home Assistant device metadata.
+
 ## v5.2.4
 * `mqtt-discovery-self`
   - retains component status snapshots so Home Assistant restores values after a restart.

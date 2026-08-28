@@ -1,6 +1,6 @@
 /**
  * MQTT Shelly Pro 3EM - Net Metering & Home Assistant Auto-Discovery
- * Version: 5.2.4
+ * Version: 5.2.5
  *
  * based on Version: 1.2.0 from https://gist.github.com/mlossin/79e1b29eba6a48466b9078be254a384f
  */
@@ -19,7 +19,7 @@ let CONFIG = {
                                  //      "Shelly Keller" (keep it short, <25 chars)
 };
 
-let VERSION = "5.2.4";
+let VERSION = "5.2.5";
 let SHELLY_ID = null;
 let SHELLY_MAC = null;
 let DEVICE_NAME = null;
