@@ -72,11 +72,6 @@ test("publishes switch and temperature discovery with device identity", function
         name: "Front door Switch",
         uniq_id: mac + "_switch0_output",
         stat_t: "shelly-test/status/switch:0",
-        avty: {
-            t: "shelly-test/online",
-            pl_avail: "true",
-            pl_not_avail: "false"
-        },
         val_tpl: "{{ 'on' if value_json.output else 'off' }}",
         dev_cla: "switch",
         cmd_t: "shelly-test/command/switch:0",
@@ -139,7 +134,7 @@ test("reports energy phases, disables minor entities, and publishes initial data
         return publish.topic === "shelly-test/status/em:0";
     });
     assert.ok(dataPublishes.length >= 1);
-    assert.equal(dataPublishes[0].retain, false);
+    assert.equal(dataPublishes[0].retain, true);
     assert.equal(JSON.parse(dataPublishes[0].payload).a_act_power, 6);
 });
 
@@ -349,7 +344,7 @@ test("publishes configured component status on the periodic refresh timer", func
         return value.topic === "shelly-test/status/wifi";
     });
     assert.equal(publish.qos, 1);
-    assert.equal(publish.retain, false);
+    assert.equal(publish.retain, true);
     assert.deepEqual(JSON.parse(publish.payload), { sta_ip: "192.168.1.42" });
 });
 

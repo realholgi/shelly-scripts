@@ -247,11 +247,6 @@ function discoveryEntity(topic, info) {
   pload["name"] = getName(info);
   pload["uniq_id"] = getUniqueId(info);
   pload["stat_t"] = topic + "/status/" + info.topic;
-  pload["avty"] = {
-      "t": topic + "/online",
-      "pl_avail": "true",
-      "pl_not_avail": "false"
-    };
 
   pload[info.attr_common == "light" ? "stat_val_tpl" : "val_tpl"] = getValTpl(info);
   pload.dev_cla = getDeviceClass(info.attr_common);
@@ -424,7 +419,7 @@ function mqttPublishComponentData(component) {
     let mqttConfig = Shelly.getComponentConfig("mqtt");
     if (!mqttConfig || !mqttConfig.topic_prefix) return;
 
-    MQTT.publish(mqttConfig.topic_prefix + "/status/" + component, JSON.stringify(status), 1, false);
+    MQTT.publish(mqttConfig.topic_prefix + "/status/" + component, JSON.stringify(status), 1, true);
 }
 
 // Publish data of collected components right after discovery is done
