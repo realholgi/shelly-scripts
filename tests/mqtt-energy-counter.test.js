@@ -46,13 +46,23 @@ test("announces energy sensors under the physical Shelly device identity", funct
 
     assert.equal(configs.length, 3);
     assert.ok(configs.every(function (publish) { return publish.retain === true; }));
+    assert.deepEqual(
+        configs.map(function (publish) {
+            return JSON.parse(publish.payload).name;
+        }).sort(),
+        [
+            "Test meter Net Metering Export",
+            "Test meter Net Metering Import",
+            "Test meter Net Metering Power"
+        ]
+    );
 
     let importConfig = configs.find(function (publish) {
         return publish.topic.endsWith("-import/config");
     });
     assert.equal(importConfig.topic, "homeassistant/sensor/shellypro3em-test-import/config");
     assert.deepEqual(JSON.parse(importConfig.payload), {
-        name: "Test meter Saldierend Import",
+        name: "Test meter Net Metering Import",
         uniq_id: "shellypro3em-test_sald_import",
         stat_t: "shellypro3em-test/energy_counter/consumed",
         unit_of_meas: "kWh",
@@ -67,7 +77,7 @@ test("announces energy sensors under the physical Shelly device identity", funct
             name: "Test meter",
             mf: "Shelly",
             mdl: "Shelly Pro 3EM",
-            sw: "Saldierung v1.2.0"
+            sw: "Net Metering v1.2.0"
         }
     });
 });
@@ -260,7 +270,7 @@ test("uses the configured display name without changing counter identity", funct
         return publish.topic.endsWith("-import/config");
     });
     let payload = JSON.parse(importConfig.payload);
-    assert.equal(payload.name, "Basement meter Saldierend Import");
+    assert.equal(payload.name, "Basement meter Net Metering Import");
     assert.equal(payload.uniq_id, "shellypro3em-test_sald_import");
     assert.equal(payload.dev.name, "Basement meter");
 });
@@ -316,6 +326,6 @@ test("falls back to the MQTT topic prefix when the Shelly name is absent", funct
         return publish.topic.endsWith("-import/config");
     });
     let payload = JSON.parse(importConfig.payload);
-    assert.equal(payload.name, "shellypro3em-test Saldierend Import");
+    assert.equal(payload.name, "shellypro3em-test Net Metering Import");
     assert.equal(payload.dev.name, "shellypro3em-test");
 });

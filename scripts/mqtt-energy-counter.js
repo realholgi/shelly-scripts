@@ -1,31 +1,8 @@
 /**
- * Shelly Pro 3EM - Net Metering & Home Assistant Auto-Discovery
- * Version: 1.2.0
+ * MQTT Shelly Pro 3EM - Net Metering & Home Assistant Auto-Discovery
+ * Version: 5.2.0
  *
- * DISCLAIMER:
- * Use this script entirely at your own risk! I assume absolutely no liability
- * for any direct, indirect, or consequential damages. This includes, but is
- * not limited to, damage to the Shelly device, any connected electrical
- * equipment, other devices in your network, data loss, or system malfunctions.
- * By using this script, you acknowledge that you alone are responsible for
- * your hardware and setup.
- *
- * CHANGELOG (v1.1.8 -> v1.2.0):
- * - NEW: Live balanced power (W) published every cycle to
- *        <topic_prefix>/energy_counter/power (not retained, CONFIG.publishPower)
- * - NEW: HA Auto-Discovery for the power sensor (device_class: power)
- * - NEW: CONFIG.invertPower - global sign correction if ALL CT clamps
- *        are mounted in reverse direction
- * - NEW: CONFIG.deviceName - display name for HA; empty = automatically
- *        taken from the Shelly device settings (Sys.GetConfig). Topics,
- *        uniq_ids and KVS keys stay bound to the MQTT topic_prefix, so the
- *        same script runs unchanged on multiple devices.
- * - FIX: Energy integration now uses the measured time delta (Date.now())
- *        instead of assuming a fixed cycle time -> no systematic
- *        under-counting caused by delayed timer ticks (MQTT/KVS load)
- * - FIX: Clamp against clock jumps (NTP sync) and blocked ticks
- * - FIX: NaN guard for total_act_power (a single NaN reading would
- *        otherwise permanently poison an accumulator)
+ * based on Version: 1.2.0 from https://gist.github.com/mlossin/79e1b29eba6a48466b9078be254a384f
  */
 
 let CONFIG = {
@@ -205,13 +182,13 @@ function AnnounceHA() {
         "name": DEVICE_NAME,
         "mf": "Shelly",
         "mdl": "Shelly Pro 3EM",
-        "sw": "Saldierung v" + VERSION
+        "sw": "Net Metering v" + VERSION
     };
 
     let okImport = MQTT.publish(
         haTopic + "-import/config",
         JSON.stringify({
-            "name": DEVICE_NAME + " Saldierend Import",
+            "name": DEVICE_NAME + " Net Metering Import",
             "uniq_id": SHELLY_ID + "_sald_import",
             "stat_t": SHELLY_ID + "/energy_counter/consumed",
             "unit_of_meas": "kWh",
@@ -228,7 +205,7 @@ function AnnounceHA() {
     let okExport = MQTT.publish(
         haTopic + "-export/config",
         JSON.stringify({
-            "name": DEVICE_NAME + " Saldierend Export",
+            "name": DEVICE_NAME + " Net Metering Export",
             "uniq_id": SHELLY_ID + "_sald_export",
             "stat_t": SHELLY_ID + "/energy_counter/returned",
             "unit_of_meas": "kWh",
@@ -247,7 +224,7 @@ function AnnounceHA() {
         okPower = MQTT.publish(
             haTopic + "-power/config",
             JSON.stringify({
-                "name": DEVICE_NAME + " Saldierend Leistung",
+                "name": DEVICE_NAME + " Net Metering Power",
                 "uniq_id": SHELLY_ID + "_sald_power",
                 "stat_t": SHELLY_ID + "/energy_counter/power",
                 "unit_of_meas": "W",
