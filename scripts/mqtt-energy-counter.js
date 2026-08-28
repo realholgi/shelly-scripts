@@ -276,14 +276,12 @@ Timer.set(CONFIG.updateInterval, true, function () {
     if (!SHELLY_ID || !countersLoaded) return;
 
     let em = Shelly.getComponentStatus("em", 0);
-    if (!em || typeof em.total_act_power !== "number" || isNaN(em.total_act_power)) return;
+    if (!em || typeof em.total_act_power !== "number" || isNaN(em.total_act_power)) {
+        // Do not apply a later reading to an interval with unknown power.
+        lastTick = null;
+        return;
+    }
 
-    // Integrate over the REAL elapsed time, not the nominal interval.
-    // Ticks skipped due to invalid readings simply extend the next delta.
-    let now = Date.now();
-    let dt = (lastTick === null) ? CONFIG.updateInterval : (now - lastTick);
-    lastTick = now;
-    if (dt <= 0 || dt > 5000) dt = CONFIG.updateInterval; // clock jump (NTP) / blocked tick
 
     let power = em.total_act_power;
     if (CONFIG.invertPower) power = -power;
@@ -294,6 +292,16 @@ Timer.set(CONFIG.updateInterval, true, function () {
         MQTT.publish(SHELLY_ID + "/energy_counter/power", power.toFixed(1), 0, false);
     }
 
+    let now = Date.now();
+    if (lastTick === null) {
+        lastTick = now;
+        return;
+    }
+
+    // Integrate over the REAL elapsed time, not the nominal interval.
+    let dt = now - lastTick;
+    lastTick = now;
+    if (dt <= 0 || dt > 5000) dt = CONFIG.updateInterval; // clock jump (NTP) / blocked tick
     let energyStep = power * (dt / 1000.0);
 
     if (power >= 0) {
