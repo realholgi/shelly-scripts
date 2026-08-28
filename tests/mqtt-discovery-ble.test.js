@@ -5,7 +5,7 @@ import { createShellyRuntime } from "./shelly-test-harness.js";
 const scriptName = "mqtt-discovery-ble.shelly.js";
 const sensorMac = "aabbccddeeff";
 
-function createBleRuntime() {
+function createBleRuntime(options = {}) {
     let scanCallback = null;
     let BLE = {
         Scanner: {
@@ -31,18 +31,21 @@ function createBleRuntime() {
             }, 0, ""]]
         ]),
         componentConfig: function (topic) {
-            if (topic === "ble") return { enable: true };
+            if (topic === "ble") return { enable: options.bleEnabled !== false };
             return null;
         }
     });
 
     return {
         ...runtime,
-        report: function (address) {
+        isScannerSubscribed: function () {
+            return scanCallback !== null;
+        },
+        report: function (address, advData) {
             scanCallback(BLE.Scanner.SCAN_RESULT, {
                 addr: address,
                 rssi: -65,
-                advData: [10, 0x16, 0xd2, 0xfc, 0, 0x02, 0xc4, 0x09, 0x01, 100]
+                advData: advData || [10, 0x16, 0xd2, 0xfc, 0, 0x02, 0xc4, 0x09, 0x01, 100]
             });
         }
     };
@@ -102,4 +105,21 @@ test("publishes data repeatedly without duplicating BLE discovery entries", func
         }).length,
         2
     );
+});
+
+test("does not start or subscribe a scanner while BLE is disabled", function () {
+    let runtime = createBleRuntime({ bleEnabled: false });
+
+    assert.equal(runtime.isScannerSubscribed(), false);
+    assert.ok(runtime.logs.includes(
+        "Error: The Bluetooth is not enabled, please enable it from settings"
+    ));
+});
+
+test("ignores encrypted BTHome advertisements", function () {
+    let runtime = createBleRuntime();
+
+    runtime.report("AA:BB:CC:DD:EE:FF", [10, 0x16, 0xd2, 0xfc, 1, 0x02, 0xc4, 0x09, 0x01, 100]);
+
+    assert.equal(runtime.publishes.length, 0);
 });

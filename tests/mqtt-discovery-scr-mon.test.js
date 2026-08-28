@@ -17,7 +17,7 @@ function createMonitorRuntime(mqttConnected = true, options = {}) {
             ver: "2.0.0",
             gen: 2
         },
-        rpcResults: new Map([
+        rpcResults: options.rpcResults || new Map([
             ["Script.List", () => [{
                 scripts: [
                     { id: 1, name: "Discovery" },
@@ -103,4 +103,22 @@ test("uses the configured fake MAC and default name for monitor discovery", func
     );
     assert.equal(payload.uniq_id, "001122334455_scripts");
     assert.equal(payload.dev.name, "001122334455-Pro 3EM");
+});
+
+test("reports zero running scripts when the script list is empty", function () {
+    let runtime = createMonitorRuntime(true, {
+        rpcResults: new Map([
+            ["Script.List", () => [{ scripts: [] }, 0, ""]]
+        ])
+    });
+
+    runtime.runTimers(1, function (timer) { return timer.interval === 2000; });
+
+    let publish = runtime.publishes.find(function (value) {
+        return value.topic === "shelly-test/status/scripts";
+    });
+    let payload = JSON.parse(publish.payload);
+    assert.equal(payload.running_count, 0);
+    assert.equal(payload.scripts_mem_free, null);
+    assert.deepEqual(payload.scripts, []);
 });

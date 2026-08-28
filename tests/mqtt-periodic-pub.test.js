@@ -83,3 +83,21 @@ test("starts a new worker cycle at the configured refresh interval", function ()
         1
     );
 });
+
+test("enumerates script components beginning with instance one", function () {
+    let runtime = createPublisherRuntime(true, {
+        transform: function (source) {
+            return source.replace('components: ["temperature"]', 'components: ["script"]');
+        },
+        componentStatus: function (topic, index) {
+            if (topic === "script" && index === undefined) return null;
+            if (topic === "script" && index === 1) return { id: 1, running: true };
+            return null;
+        }
+    });
+
+    let publish = runtime.publishes.find(function (value) {
+        return value.topic === "shelly-test/status/script:1";
+    });
+    assert.deepEqual(JSON.parse(publish.payload), { id: 1, running: true });
+});
