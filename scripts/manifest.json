@@ -18,6 +18,11 @@
     "fname": "mqtt-periodic-pub.shelly.js",
     "title": "MQTT Component Periodic Publisher",
     "description": "This script republishes, at a configurable interval, the states of selected components to MQTT."
+  },
+  {
+    "fname": "mqtt-energy-counter.js",
+    "title": "MQTT Energy Counter",
+    "description": "This script calculates balanced imported and exported energy from a Shelly Pro 3EM and publishes the counters to MQTT. It registers the counters, and optionally live balanced power, through Home Assistant MQTT Discovery."
   }
   
 ]

@@ -17,6 +17,9 @@ The script monitors state of Shelly scripts, providing this information to Home 
 **MQTT Periodic Component Publisher** [docs](scripts/mqtt-periodic-pub.md)\
 This script republishes, at a configurable interval, the states of selected components to MQTT.
 
+**MQTT Energy Counter** [docs](scripts/mqtt-energy-counter.md)\
+This script calculates balanced imported and exported energy for a Shelly Pro 3EM and publishes Home Assistant MQTT Discovery entities.
+
 ## Installation
 
 There are several methods how to install scripts.
@@ -61,7 +64,7 @@ Use it to deploy any script to your device, directly from GitHub or from local f
    1. Run it, optionally mark as `Run at Startup`
 
 ```
-https://raw.githubusercontent.com/michalk-k/shelly-scripts/main/scripts/manifest.json
+https://raw.githubusercontent.com/realholgi/shelly-scripts/main/scripts/manifest.json
 ```
 ---
 </details>

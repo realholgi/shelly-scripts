@@ -1,0 +1,325 @@
+/**
+ * Shelly Pro 3EM - Net Metering & Home Assistant Auto-Discovery
+ * Version: 1.2.0
+ *
+ * DISCLAIMER:
+ * Use this script entirely at your own risk! I assume absolutely no liability
+ * for any direct, indirect, or consequential damages. This includes, but is
+ * not limited to, damage to the Shelly device, any connected electrical
+ * equipment, other devices in your network, data loss, or system malfunctions.
+ * By using this script, you acknowledge that you alone are responsible for
+ * your hardware and setup.
+ *
+ * CHANGELOG (v1.1.8 -> v1.2.0):
+ * - NEW: Live balanced power (W) published every cycle to
+ *        <topic_prefix>/energy_counter/power (not retained, CONFIG.publishPower)
+ * - NEW: HA Auto-Discovery for the power sensor (device_class: power)
+ * - NEW: CONFIG.invertPower - global sign correction if ALL CT clamps
+ *        are mounted in reverse direction
+ * - NEW: CONFIG.deviceName - display name for HA; empty = automatically
+ *        taken from the Shelly device settings (Sys.GetConfig). Topics,
+ *        uniq_ids and KVS keys stay bound to the MQTT topic_prefix, so the
+ *        same script runs unchanged on multiple devices.
+ * - FIX: Energy integration now uses the measured time delta (Date.now())
+ *        instead of assuming a fixed cycle time -> no systematic
+ *        under-counting caused by delayed timer ticks (MQTT/KVS load)
+ * - FIX: Clamp against clock jumps (NTP sync) and blocked ticks
+ * - FIX: NaN guard for total_act_power (a single NaN reading would
+ *        otherwise permanently poison an accumulator)
+ */
+
+let CONFIG = {
+    updateInterval: 1000,         // Calculation / MQTT power cycle in ms (1 second)
+    enablePersistence: true,     // true = Save counter states to flash memory
+    saveInterval: 900,          // Save to KVS every 900 cycles (~15 min. at 1 s)
+    mqttPrefix: "homeassistant", // Standard HA Discovery Prefix
+
+    publishPower: true,          // true = publish live balanced power (W) every cycle
+    invertPower: false,          // true = ALL CT clamps mounted reversed -> flip sign
+    deviceName: ""               // "" = use device name from Shelly settings
+                                 //      (Web-UI -> Settings -> Device Name),
+                                 //      or set a fixed name here, e.g.
+                                 //      "Shelly Keller" (keep it short, <25 chars)
+};
+
+let VERSION = "1.2.0";
+let SHELLY_ID = null;
+let DEVICE_NAME = null;
+
+let energyReturnedWs = 0.0;
+let energyConsumedWs = 0.0;
+let energyReturnedKWh = 0.0;
+let energyConsumedKWh = 0.0;
+
+let saveCounter = 0;
+let lastPublishedConsumed = "";
+let lastPublishedReturned = "";
+let countersLoaded = false;
+let lastTick = null;
+
+// ─────────────────────────────────────────────
+// 1. Helper Functions
+// ─────────────────────────────────────────────
+
+function TryAnnounceAndPublish() {
+    if (!SHELLY_ID || !DEVICE_NAME || !MQTT.isConnected()) return;
+    AnnounceHA();
+    if (countersLoaded) PublishCounters(true);
+}
+
+function PublishCounters(force) {
+    if (!SHELLY_ID || !countersLoaded) return;
+
+    let valC = energyConsumedKWh.toFixed(3);
+    let valR = energyReturnedKWh.toFixed(3);
+
+    if (!force && valC === lastPublishedConsumed && valR === lastPublishedReturned) return;
+
+    let okC = MQTT.publish(SHELLY_ID + "/energy_counter/consumed", valC, 0, true);
+    let okR = MQTT.publish(SHELLY_ID + "/energy_counter/returned", valR, 0, true);
+
+    if (okC) lastPublishedConsumed = valC;
+    if (okR) lastPublishedReturned = valR;
+}
+
+// ─────────────────────────────────────────────
+// 2. MQTT Event Handlers
+// ─────────────────────────────────────────────
+
+MQTT.setConnectHandler(function () {
+    print("MQTT connected.");
+    TryAnnounceAndPublish();
+});
+
+MQTT.setDisconnectHandler(function () {
+    // Cannot publish here – connection is already gone.
+    // HA uses native Shelly LWT on <topic_prefix>/online for offline detection.
+    print("MQTT disconnected.");
+});
+
+// ─────────────────────────────────────────────
+// 3. Get Device ID / Name and Initialize
+// ─────────────────────────────────────────────
+
+Shelly.call("Mqtt.GetConfig", {}, function (res, err_code, err_msg) {
+    if (!res) {
+        print("ERROR: Mqtt.GetConfig returned null! Code: " + err_code + " | " + err_msg);
+        return;
+    }
+
+    SHELLY_ID = res.topic_prefix ? res.topic_prefix : null;
+
+    if (!SHELLY_ID) {
+        print("ERROR: No MQTT topic_prefix set. Please check MQTT configuration.");
+        return;
+    }
+
+    print("Shelly ID: " + SHELLY_ID + " | Script v" + VERSION);
+
+    if (CONFIG.enablePersistence) {
+        LoadCounters();
+    } else {
+        countersLoaded = true;
+        print("Persistence disabled. Counters start at 0.");
+    }
+
+    // Resolve the display name, then announce.
+    // Identity (topics, uniq_id, KVS keys) always stays bound to SHELLY_ID,
+    // so the name can be changed later without creating orphaned entities.
+    if (CONFIG.deviceName !== "") {
+        DEVICE_NAME = CONFIG.deviceName;
+        print("Device name (CONFIG): " + DEVICE_NAME);
+        TryAnnounceAndPublish();
+    } else {
+        Shelly.call("Sys.GetConfig", {}, function (sys) {
+            DEVICE_NAME = (sys && sys.device && sys.device.name) ? sys.device.name : SHELLY_ID;
+            print("Device name (Shelly settings): " + DEVICE_NAME);
+            TryAnnounceAndPublish();
+        });
+    }
+});
+
+// ─────────────────────────────────────────────
+// 4. Home Assistant Auto-Discovery
+// ─────────────────────────────────────────────
+
+function AnnounceHA() {
+    if (!SHELLY_ID || !DEVICE_NAME) return;
+
+    let haTopic = CONFIG.mqttPrefix + "/sensor/" + SHELLY_ID;
+    let avtyTopic = SHELLY_ID + "/online";
+
+    let dev = {
+        "ids": [SHELLY_ID],
+        "name": DEVICE_NAME,
+        "mf": "Shelly",
+        "mdl": "Shelly Pro 3EM",
+        "sw": "Saldierung v" + VERSION
+    };
+
+    let okImport = MQTT.publish(
+        haTopic + "-import/config",
+        JSON.stringify({
+            "name": DEVICE_NAME + " Saldierend Import",
+            "uniq_id": SHELLY_ID + "_sald_import",
+            "stat_t": SHELLY_ID + "/energy_counter/consumed",
+            "unit_of_meas": "kWh",
+            "dev_cla": "energy",
+            "stat_cla": "total_increasing",
+            "avty_t": avtyTopic,
+            "pl_avail": "true",
+            "pl_not_avail": "false",
+            "dev": dev
+        }),
+        0, true
+    );
+
+    let okExport = MQTT.publish(
+        haTopic + "-export/config",
+        JSON.stringify({
+            "name": DEVICE_NAME + " Saldierend Export",
+            "uniq_id": SHELLY_ID + "_sald_export",
+            "stat_t": SHELLY_ID + "/energy_counter/returned",
+            "unit_of_meas": "kWh",
+            "dev_cla": "energy",
+            "stat_cla": "total_increasing",
+            "avty_t": avtyTopic,
+            "pl_avail": "true",
+            "pl_not_avail": "false",
+            "dev": dev
+        }),
+        0, true
+    );
+
+    let okPower = true;
+    if (CONFIG.publishPower) {
+        okPower = MQTT.publish(
+            haTopic + "-power/config",
+            JSON.stringify({
+                "name": DEVICE_NAME + " Saldierend Leistung",
+                "uniq_id": SHELLY_ID + "_sald_power",
+                "stat_t": SHELLY_ID + "/energy_counter/power",
+                "unit_of_meas": "W",
+                "dev_cla": "power",
+                "stat_cla": "measurement",
+                "avty_t": avtyTopic,
+                "pl_avail": "true",
+                "pl_not_avail": "false",
+                "dev": dev
+            }),
+            0, true
+        );
+    } else {
+        // Remove a possibly retained power discovery config from earlier runs
+        MQTT.publish(haTopic + "-power/config", "", 0, true);
+    }
+
+    if (okImport && okExport && okPower) {
+        print("HA Auto-Discovery sent.");
+    } else {
+        print("WARNING: HA Discovery publish failed (MQTT not ready?).");
+    }
+}
+
+// ─────────────────────────────────────────────
+// 5. Load / Save Persistence (KVS)
+// ─────────────────────────────────────────────
+
+function LoadCounters() {
+    let loadedCount = 0;
+
+    function checkDone() {
+        loadedCount++;
+        if (loadedCount === 2) {
+            countersLoaded = true;
+            lastPublishedConsumed = "";
+            lastPublishedReturned = "";
+            print("Counters ready. Consumed: " + energyConsumedKWh + " kWh | Returned: " + energyReturnedKWh + " kWh");
+            if (MQTT.isConnected()) PublishCounters(true);
+        }
+    }
+
+    Shelly.call("KVS.Get", { "key": "EnergyConsumedKWh" }, function (res, err_code) {
+        if (res && res.value !== undefined && res.value !== null) {
+            energyConsumedKWh = Number(res.value);
+            if (isNaN(energyConsumedKWh)) energyConsumedKWh = 0.0;
+            print("Loaded EnergyConsumedKWh: " + energyConsumedKWh);
+        } else if (err_code !== 0) {
+            print("INFO: EnergyConsumedKWh not in KVS yet (first run?).");
+        }
+        checkDone();
+    });
+
+    Shelly.call("KVS.Get", { "key": "EnergyReturnedKWh" }, function (res, err_code) {
+        if (res && res.value !== undefined && res.value !== null) {
+            energyReturnedKWh = Number(res.value);
+            if (isNaN(energyReturnedKWh)) energyReturnedKWh = 0.0;
+            print("Loaded EnergyReturnedKWh: " + energyReturnedKWh);
+        } else if (err_code !== 0) {
+            print("INFO: EnergyReturnedKWh not in KVS yet (first run?).");
+        }
+        checkDone();
+    });
+}
+
+function SaveCounters() {
+    Shelly.call("KVS.Set", { "key": "EnergyConsumedKWh", "value": energyConsumedKWh.toFixed(3) });
+    Shelly.call("KVS.Set", { "key": "EnergyReturnedKWh", "value": energyReturnedKWh.toFixed(3) });
+    print("Counters saved to KVS.");
+}
+
+// ─────────────────────────────────────────────
+// 6. Main Calculation Loop
+// ─────────────────────────────────────────────
+
+Timer.set(CONFIG.updateInterval, true, function () {
+    if (!SHELLY_ID || !countersLoaded) return;
+
+    let em = Shelly.getComponentStatus("em", 0);
+    if (!em || typeof em.total_act_power !== "number" || isNaN(em.total_act_power)) return;
+
+    // Integrate over the REAL elapsed time, not the nominal interval.
+    // Ticks skipped due to invalid readings simply extend the next delta.
+    let now = Date.now();
+    let dt = (lastTick === null) ? CONFIG.updateInterval : (now - lastTick);
+    lastTick = now;
+    if (dt <= 0 || dt > 5000) dt = CONFIG.updateInterval; // clock jump (NTP) / blocked tick
+
+    let power = em.total_act_power;
+    if (CONFIG.invertPower) power = -power;
+
+    // Live balanced power in W (positive = import, negative = export).
+    // Not retained: a stale live value must not survive broker/HA restarts.
+    if (CONFIG.publishPower && MQTT.isConnected()) {
+        MQTT.publish(SHELLY_ID + "/energy_counter/power", power.toFixed(1), 0, false);
+    }
+
+    let energyStep = power * (dt / 1000.0);
+
+    if (power >= 0) {
+        energyConsumedWs += energyStep;
+    } else {
+        energyReturnedWs += Math.abs(energyStep);
+    }
+
+    if (energyConsumedWs >= 3600) {
+        let chunkC = Math.floor(energyConsumedWs / 3600);
+        energyConsumedKWh += chunkC / 1000.0;
+        energyConsumedWs -= chunkC * 3600;
+    }
+    if (energyReturnedWs >= 3600) {
+        let chunkR = Math.floor(energyReturnedWs / 3600);
+        energyReturnedKWh += chunkR / 1000.0;
+        energyReturnedWs -= chunkR * 3600;
+    }
+
+    PublishCounters(false);
+
+    if (CONFIG.enablePersistence) {
+        saveCounter++;
+        if (saveCounter >= CONFIG.saveInterval) {
+            saveCounter = 0;
+            SaveCounters();
+        }
+    }
+});
