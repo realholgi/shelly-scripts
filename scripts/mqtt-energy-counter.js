@@ -307,7 +307,7 @@ function SaveCounters() {
     let pending = 2;
     let succeeded = true;
 
-    function checkDone(err_code, err_msg) {
+    function checkDone(res, err_code, err_msg) {
         if (err_code !== 0) {
             succeeded = false;
             print("ERROR: KVS.Set failed. Code: " + err_code + " | " + err_msg);
