@@ -52,6 +52,7 @@ let energyReturnedKWh = 0.0;
 let energyConsumedKWh = 0.0;
 
 let saveCounter = 0;
+let saveInProgress = false;
 let lastPublishedConsumed = "";
 let lastPublishedReturned = "";
 let countersLoaded = false;
@@ -263,9 +264,33 @@ function LoadCounters() {
 }
 
 function SaveCounters() {
-    Shelly.call("KVS.Set", { "key": "EnergyConsumedKWh", "value": energyConsumedKWh.toFixed(3) });
-    Shelly.call("KVS.Set", { "key": "EnergyReturnedKWh", "value": energyReturnedKWh.toFixed(3) });
-    print("Counters saved to KVS.");
+    if (saveInProgress) return;
+    saveInProgress = true;
+
+    let pending = 2;
+    let succeeded = true;
+
+    function checkDone(err_code, err_msg) {
+        if (err_code !== 0) {
+            succeeded = false;
+            print("ERROR: KVS.Set failed. Code: " + err_code + " | " + err_msg);
+        }
+        pending--;
+        if (pending === 0) {
+            saveInProgress = false;
+            if (succeeded) print("Counters saved to KVS.");
+        }
+    }
+
+    // Include the sub-Wh remainder so a restart cannot discard it.
+    Shelly.call("KVS.Set", {
+        "key": "EnergyConsumedKWh",
+        "value": (energyConsumedKWh + energyConsumedWs / 3600000.0).toFixed(6)
+    }, checkDone);
+    Shelly.call("KVS.Set", {
+        "key": "EnergyReturnedKWh",
+        "value": (energyReturnedKWh + energyReturnedWs / 3600000.0).toFixed(6)
+    }, checkDone);
 }
 
 // ─────────────────────────────────────────────
