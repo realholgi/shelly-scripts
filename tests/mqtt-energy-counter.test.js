@@ -225,3 +225,35 @@ test("clamps clock jumps to one configured update interval", function () {
 
     assert.equal(runtime.latestKvsValue("EnergyConsumedKWh"), "0.000028");
 });
+
+test("skips KVS writes when persistence is disabled", function () {
+    let runtime = createCounterRuntime({
+        transform: function (source) {
+            return source
+                .replace("enablePersistence: true", "enablePersistence: false")
+                .replace("saveInterval: 900", "saveInterval: 1");
+        }
+    });
+
+    runtime.tick(1000, 100);
+    runtime.tick(2000, 100);
+
+    assert.equal(runtime.kvsSets.length, 0);
+    assert.ok(runtime.logs.includes("Persistence disabled. Counters start at 0."));
+});
+
+test("uses the configured display name without changing counter identity", function () {
+    let runtime = createCounterRuntime({
+        transform: function (source) {
+            return source.replace('deviceName: ""', 'deviceName: "Basement meter"');
+        }
+    });
+
+    let importConfig = runtime.discoveryPublishes().find(function (publish) {
+        return publish.topic.endsWith("-import/config");
+    });
+    let payload = JSON.parse(importConfig.payload);
+    assert.equal(payload.name, "Basement meter Saldierend Import");
+    assert.equal(payload.uniq_id, "shellypro3em-test_sald_import");
+    assert.equal(payload.dev.name, "Basement meter");
+});

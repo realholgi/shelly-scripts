@@ -336,3 +336,44 @@ test("cleans obsolete output domains before publishing an alternate light entity
     assert.equal(payload.cmd_t, "shelly-test/command/switch:0");
     assert.equal(payload.dev_cla, "light");
 });
+
+test("publishes configured component status on the periodic refresh timer", function () {
+    let runtime = createDiscoveryRuntime(function () {
+        return undefined;
+    });
+
+    runtime.setMqttConnected(true);
+    runtime.runTimers(8, function (timer) { return timer.interval === 500; });
+    runtime.runTimers(1, function (timer) { return timer.interval === 60000; });
+
+    let publish = runtime.publishes.find(function (value) {
+        return value.topic === "shelly-test/status/wifi";
+    });
+    assert.equal(publish.qos, 1);
+    assert.equal(publish.retain, false);
+    assert.deepEqual(JSON.parse(publish.payload), { sta_ip: "192.168.1.42" });
+});
+
+test("discovers only Fahrenheit values when configured for Fahrenheit", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "temperature") return null;
+        if (topic === "temperature:0") return { tC: 21, tF: 69.8 };
+        return undefined;
+    }, {
+        transform: function (source) {
+            return source.replace('temperature_unit: "C"', 'temperature_unit: "F"');
+        }
+    });
+
+    runDiscoveryCycle(runtime);
+
+    let payload = runtime.entityPayload(
+        "homeassistant/sensor/" + mac + "/temperature0-tF/config"
+    );
+    assert.equal(payload.unit_of_meas, "°F");
+    assert.equal(payload.val_tpl, "{{ value_json.tF }}");
+    assert.equal(
+        runtime.entityPayload("homeassistant/sensor/" + mac + "/temperature0-tC/config"),
+        null
+    );
+});
