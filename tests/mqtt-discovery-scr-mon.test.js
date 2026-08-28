@@ -5,9 +5,10 @@ import { createShellyRuntime } from "./shelly-test-harness.js";
 const scriptName = "mqtt-discovery-scr-mon.shelly.js";
 const mac = "b8d62ef00f42";
 
-function createMonitorRuntime(mqttConnected = true) {
+function createMonitorRuntime(mqttConnected = true, options = {}) {
     return createShellyRuntime(scriptName, {
         mqttConnected: mqttConnected,
+        transform: options.transform,
         deviceInfo: {
             name: "Test Shelly",
             mac: "B8:D6:2E:F0:0F:42",
@@ -85,4 +86,21 @@ test("does not publish discovery or script data while MQTT is disconnected", fun
     assert.equal(runtime.publishes.length, 0);
     assert.ok(runtime.logs.includes("MQTT not connected, skipping discovery publish"));
     assert.ok(runtime.logs.includes("MQTT not connected, skipping publish"));
+});
+
+
+test("uses the configured fake MAC and default name for monitor discovery", function () {
+    let runtime = createMonitorRuntime(true, {
+        transform: function (source) {
+            return source
+                .replace("device: true", "device: false")
+                .replace('fake_macaddress: ""', 'fake_macaddress: "00:11:22:33:44:55"');
+        }
+    });
+
+    let payload = runtime.entityPayload(
+        "homeassistant/sensor/001122334455/scripts_monitor/config"
+    );
+    assert.equal(payload.uniq_id, "001122334455_scripts");
+    assert.equal(payload.dev.name, "001122334455-Pro 3EM");
 });

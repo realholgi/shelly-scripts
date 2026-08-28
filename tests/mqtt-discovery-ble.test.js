@@ -83,3 +83,23 @@ test("ignores BLE advertisements from unallowed devices", function () {
         return message.includes("Ignored MAC: 112233445566");
     }));
 });
+
+test("publishes data repeatedly without duplicating BLE discovery entries", function () {
+    let runtime = createBleRuntime();
+
+    runtime.report("AA:BB:CC:DD:EE:FF");
+    runtime.report("AA:BB:CC:DD:EE:FF");
+
+    assert.equal(
+        runtime.publishes.filter(function (publish) {
+            return publish.topic === "homeassistant/sensor/" + sensorMac + "/temperature/config";
+        }).length,
+        1
+    );
+    assert.equal(
+        runtime.publishes.filter(function (publish) {
+            return publish.topic === "blegateway/" + sensorMac + "/data";
+        }).length,
+        2
+    );
+});

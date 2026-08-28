@@ -50,7 +50,7 @@ function publishToMQTT_worker() {
   }
 
   if (status) {
-    MQTT.publish(Shelly.getComponentConfig("mqtt").topic_prefix + "/status/" + comp + (status.id !== undefined ? ":" + status.id : ""), JSON.stringify(status), 1, false);
+    MQTT.publish(Shelly.getComponentConfig("mqtt").topic_prefix + "/status/" + comp + (status.id !== undefined && comp.indexOf(":") == -1 ? ":" + status.id : ""), JSON.stringify(status), 1, false);
   }
 }
 
