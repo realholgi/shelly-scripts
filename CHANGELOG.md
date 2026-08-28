@@ -1,5 +1,10 @@
 # Changelog
 
+## v5.2.4
+* `mqtt-discovery-self`
+  - retains component status snapshots so Home Assistant restores values after a restart.
+  - removes the unavailable native MQTT availability topic from discovery payloads.
+
 ## v5.2.3
 * `mqtt-discovery-self`
   - fix bug introduced in v5.2.0
