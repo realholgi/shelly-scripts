@@ -392,7 +392,7 @@ function precollect(runId, done) {
 
           status = Shelly.getComponentStatus(scomp);
 
-          if (status === null) break;
+          if (status === null) continue;
 
           for (let datattr in status) {
             if (!isSupportedAttr(getCommonAttr(comparr[0], datattr))) continue;
