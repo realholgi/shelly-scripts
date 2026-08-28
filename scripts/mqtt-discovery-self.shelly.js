@@ -410,10 +410,15 @@ function precollect(runId, done) {
 }
 
 function mqttPublishComponentData(component) {
+    if (!MQTT.isConnected()) return;
+
     let status = Shelly.getComponentStatus(component);
     if (!status) return;
 
-    MQTT.publish(Shelly.getComponentConfig("mqtt").topic_prefix + "/status/" + component, JSON.stringify(status), 1, false);
+    let mqttConfig = Shelly.getComponentConfig("mqtt");
+    if (!mqttConfig || !mqttConfig.topic_prefix) return;
+
+    MQTT.publish(mqttConfig.topic_prefix + "/status/" + component, JSON.stringify(status), 1, false);
 }
 
 // Publish data of collected components right after discovery is done
@@ -480,7 +485,10 @@ function mqttDiscovery() {
 
   info.issingle = comp_inst_num[info.comp] == 1;
 
-  let data = discoveryEntity(Shelly.getComponentConfig("mqtt").topic_prefix, info);
+  let mqttConfig = Shelly.getComponentConfig("mqtt");
+  if (!mqttConfig || !mqttConfig.topic_prefix) return false;
+
+  let data = discoveryEntity(mqttConfig.topic_prefix, info);
   data.data.dev = discoveryDevice(info.mac);
 
   let doms;
@@ -559,7 +567,7 @@ function reportingWorker() {
  * The topic is constructed using the MQTT topic prefix and the "status/wifi" suffix.
  */
 function reportWifiToMQTT() {
-  if (isProcessing) return;
+  if (isProcessing || !MQTT.isConnected()) return;
 
   for (let comp of CONFIG.components_refresh) {
     mqttPublishComponentData(comp);
@@ -580,11 +588,22 @@ MQTT.setConnectHandler(
     }
 );
 
+MQTT.setDisconnectHandler(
+    function () {
+      mqttConnected = false;
+      discoveryRunId++;
+
+      if (discoverytimer) Timer.clear(discoverytimer);
+      discoverytimer = null;
+      isProcessing = false;
+    }
+);
+
 // Report Discovery on Shelly config Change
 Shelly.addEventHandler(
     function (event) {
         // while we don't have better selectivity for event source
-        if (typeof (event) === 'undefined') return;
+        if (typeof (event) === 'undefined' || !event.info) return;
         if (event.info.event == "config_changed" &&
           !event.info.restart_required &&
           (COMPONENT_TYPES.indexOf(event.name) !== -1 || event.name == 'sys')) {
