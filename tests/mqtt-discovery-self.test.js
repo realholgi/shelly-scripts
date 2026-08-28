@@ -29,6 +29,8 @@ function createDiscoveryRuntime(componentStatus, options = {}) {
             return null;
         },
         componentConfig: function (topic) {
+            let customConfig = options.componentConfig ? options.componentConfig(topic) : undefined;
+            if (customConfig !== undefined) return customConfig;
             if (topic === "switch:0") return { name: "Front door" };
             if (topic === "temperature:0") return { tC: { }, tF: { } };
             if (topic === "em:0") {
@@ -184,4 +186,66 @@ test("cancels stale discovery work after MQTT disconnect", function () {
 
     runtime.setMqttConnected(true);
     assert.equal(runtime.discoveryPublishes().length, publishedBeforeDisconnect);
+});
+
+test("discovers positional covers with tilt controls", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "cover") return null;
+        if (topic === "cover:0") return {
+            state: "open",
+            pos_control: true,
+            current_pos: 25,
+            slat_pos: 50
+        };
+        return undefined;
+    }, {
+        componentConfig: function (topic) {
+            if (topic === "cover:0") return { slat: { enable: true } };
+            return undefined;
+        }
+    });
+
+    runDiscoveryCycle(runtime);
+
+    let payload = runtime.entityPayload(
+        "homeassistant/cover/" + mac + "/cover0-state/config"
+    );
+    assert.equal(payload.cmd_t, "shelly-test/command/cover:0");
+    assert.equal(payload.pos_t, "shelly-test/status/cover:0");
+    assert.equal(payload.set_pos_tpl, "pos,{{ position }}");
+    assert.equal(payload.tilt_cmd_tpl, "slat_pos,{{ tilt_position }}");
+    assert.equal(payload.tilt_status_tpl, "{{ value_json.slat_pos }}");
+});
+
+test("keeps input-only device entities enabled", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "input") return null;
+        if (topic === "input:0") return { state: true };
+        return undefined;
+    });
+
+    runDiscoveryCycle(runtime);
+
+    let payload = runtime.entityPayload(
+        "homeassistant/binary_sensor/" + mac + "/input0-state/config"
+    );
+    assert.equal(payload.en, undefined);
+    assert.equal(payload.pl_on, true);
+    assert.equal(payload.pl_off, false);
+});
+
+test("reruns discovery after an eligible configuration change", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "switch") return null;
+        if (topic === "switch:0") return { output: false };
+        return undefined;
+    });
+
+    runDiscoveryCycle(runtime);
+    let publishesBefore = runtime.discoveryPublishes().length;
+
+    runtime.fireConfigChanged("sys", false);
+    runtime.runTimers(8, function (timer) { return timer.interval === 500; });
+
+    assert.ok(runtime.discoveryPublishes().length > publishesBefore);
 });

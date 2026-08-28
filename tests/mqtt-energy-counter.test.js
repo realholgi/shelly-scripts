@@ -142,3 +142,21 @@ test("rejects invalid configuration before initializing MQTT", function () {
     );
     assert.ok(runtime.logs.includes("ERROR: Invalid configuration. Script stopped."));
 });
+
+test("removes stale power discovery when live power is disabled", function () {
+    let runtime = createCounterRuntime({
+        transform: function (source) {
+            return source.replace("publishPower: true", "publishPower: false");
+        }
+    });
+
+    let configs = runtime.discoveryPublishes();
+    assert.equal(
+        configs.filter(function (publish) { return publish.payload !== ""; }).length,
+        2
+    );
+    assert.ok(configs.some(function (publish) {
+        return publish.topic === "homeassistant/sensor/shellypro3em-test-power/config" &&
+            publish.payload === "" && publish.retain === true;
+    }));
+});
