@@ -69,15 +69,16 @@ function normalizeMacAddress(address) {
  */
 function discoveryDevice(mac) {
 
+  let deviceInfo = Shelly.getDeviceInfo();
   let device = {};
-  device.name = Shelly.getDeviceInfo().name && CONFIG.custom_names.device ? Shelly.getDeviceInfo().name : mac + "-" + Shelly.getDeviceInfo().app;
+  device.name = deviceInfo.name && CONFIG.custom_names.device ? deviceInfo.name : mac + "-" + deviceInfo.app;
   device.ids = [mac + ""];
   device.cns = [["mac", mac + ""]];
   device.mf = "Shelly"
-  device.mdl = "Shelly " + Shelly.getDeviceInfo().app;
-  device.mdl_id = Shelly.getDeviceInfo().model;
-  device.sw = Shelly.getDeviceInfo().ver;
-  device.hw = "gen " + Shelly.getDeviceInfo().gen;
+  device.mdl = "Shelly " + deviceInfo.app;
+  device.mdl_id = deviceInfo.model;
+  device.sw = deviceInfo.ver;
+  device.hw = "gen " + deviceInfo.gen;
 
   if (CONFIG.report_ip) {
     let wifiStatus = Shelly.getComponentStatus("wifi");
