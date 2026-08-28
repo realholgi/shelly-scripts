@@ -19,7 +19,7 @@ let CONFIG = {
                                  //      "Shelly Keller" (keep it short, <25 chars)
 };
 
-let VERSION = "1.2.0";
+let VERSION = "5.2.0";
 let SHELLY_ID = null;
 let SHELLY_MAC = null;
 let DEVICE_NAME = null;
