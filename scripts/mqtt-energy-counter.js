@@ -44,6 +44,7 @@ let CONFIG = {
 
 let VERSION = "1.2.0";
 let SHELLY_ID = null;
+let SHELLY_MAC = null;
 let DEVICE_NAME = null;
 
 let energyReturnedWs = 0.0;
@@ -81,6 +82,10 @@ function PublishCounters(force) {
 
     if (okC) lastPublishedConsumed = valC;
     if (okR) lastPublishedReturned = valR;
+}
+
+function NormalizeMacAddress(address) {
+    return String(address).split("-").join("").split(":").join("").toLowerCase();
 }
 
 function IsPositiveInteger(value) {
@@ -140,9 +145,16 @@ function Initialize() {
 
         SHELLY_ID = res.topic_prefix ? res.topic_prefix : null;
 
+
         if (!SHELLY_ID) {
             print("ERROR: No MQTT topic_prefix set. Please check MQTT configuration.");
             return;
+        }
+
+        let deviceInfo = Shelly.getDeviceInfo();
+        SHELLY_MAC = deviceInfo && deviceInfo.mac ? NormalizeMacAddress(deviceInfo.mac) : SHELLY_ID;
+        if (SHELLY_MAC === SHELLY_ID) {
+            print("WARNING: Device MAC unavailable. Home Assistant device merge may not work.");
         }
 
         print("Shelly ID: " + SHELLY_ID + " | Script v" + VERSION);
@@ -188,7 +200,8 @@ function AnnounceHA() {
     let avtyTopic = SHELLY_ID + "/online";
 
     let dev = {
-        "ids": [SHELLY_ID],
+        "ids": [SHELLY_MAC],
+        "cns": [["mac", SHELLY_MAC]],
         "name": DEVICE_NAME,
         "mf": "Shelly",
         "mdl": "Shelly Pro 3EM",

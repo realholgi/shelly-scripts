@@ -17,7 +17,7 @@ function createCounterRuntime(options = {}) {
 
     let runtime = createShellyRuntime(scriptName, {
         transform: options.transform,
-        deviceInfo: { name: "Test meter" },
+        deviceInfo: { name: "Test meter", mac: "B8:D6:2E:F0:0F:42" },
         rpcResults: rpcResults,
         kvsValues: options.kvsValues,
         kvsSetResults: options.kvsSetResults,
@@ -40,7 +40,7 @@ function createCounterRuntime(options = {}) {
     };
 }
 
-test("announces energy and power sensors with Home Assistant discovery", function () {
+test("announces energy sensors under the physical Shelly device identity", function () {
     let runtime = createCounterRuntime();
     let configs = runtime.discoveryPublishes();
 
@@ -62,7 +62,8 @@ test("announces energy and power sensors with Home Assistant discovery", functio
         pl_avail: "true",
         pl_not_avail: "false",
         dev: {
-            ids: ["shellypro3em-test"],
+            ids: ["b8d62ef00f42"],
+            cns: [["mac", "b8d62ef00f42"]],
             name: "Test meter",
             mf: "Shelly",
             mdl: "Shelly Pro 3EM",

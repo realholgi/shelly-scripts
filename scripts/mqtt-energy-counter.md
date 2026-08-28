@@ -11,6 +11,12 @@ Optionally, it also publishes the current balanced power. Positive power represe
 
 Home Assistant MQTT Discovery must be enabled to create the entities automatically.
 
+## Home Assistant device association
+
+When used with `mqtt-discovery-self.shelly.js` on the same Shelly, the scripts use the physical MAC address as their MQTT Discovery device identifier. Home Assistant therefore groups their entities under one device.
+
+After updating this script, restart it or reconnect MQTT so it republishes discovery. If `mqtt-discovery-self.shelly.js` uses `fake_macaddress` for testing, leave it empty on production devices; otherwise its discovery identifier will intentionally differ.
+
 ## Installation and Configuration
 
 For installation instructions, see the [Installation](/#installation) section.
