@@ -329,7 +329,7 @@ function initGlobals() {
  *
  * Data are stored into array, making it possible to track the progress and resume with subsequent Timer calls.
  */
-function precollect() {
+function precollect(runId, done) {
 
   initGlobals();
   let status;
@@ -376,10 +376,11 @@ function precollect() {
   }
 
   Shelly.call("SensorAddon.GetPeripherals", {}, function (res) {
+    if (runId != discoveryRunId) return;
 
-    for (let peripheral in res) {
-      // Check if first-level element has children
-      if (Object.keys(res[peripheral]).length == 0) continue
+    if (res) {
+      for (let peripheral in res) {
+        if (!res[peripheral] || Object.keys(res[peripheral]).length == 0) continue;
 
         for (let scomp in res[peripheral]) {
           let comparr = scomp.split(":");
@@ -394,11 +395,11 @@ function precollect() {
             if (datattr == "tF" && CONFIG.temperature_unit != "F") continue;
             report_arr.push({comp : comparr[0], ix: comparr[1], attr: datattr, topic: scomp, addon: true});
           }
-
-          status = null;
-
         }
+      }
     }
+
+    done();
   });
 
 }
@@ -506,6 +507,7 @@ let discoverytimer;
 let mqttConnected = false;
 let isProcessing = false;
 let processingPhase;
+let discoveryRunId = 0;
 
 /**
  * Initialize discovery process.
@@ -514,11 +516,16 @@ let processingPhase;
  * @returns
  */
 function onMQTTConnected() {
-  if (isProcessing) return;
+  if (!MQTT.isConnected() || isProcessing) return;
+
+  let runId = ++discoveryRunId;
   isProcessing = true;
   processingPhase = "discovery";
-  precollect();
-  discoverytimer = Timer.set(CONFIG.mqtt_publish_pause, true, reportingWorker);
+
+  precollect(runId, function () {
+    if (runId != discoveryRunId || !isProcessing || !MQTT.isConnected()) return;
+    discoverytimer = Timer.set(CONFIG.mqtt_publish_pause, true, reportingWorker);
+  });
 }
 
 function reportingWorker() {
