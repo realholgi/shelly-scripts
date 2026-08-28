@@ -235,7 +235,7 @@ test("keeps input-only device entities enabled", function () {
     assert.equal(payload.pl_off, false);
 });
 
-test("reruns discovery after an eligible configuration change", function () {
+test("reruns discovery after an MQTT configuration change", function () {
     let runtime = createDiscoveryRuntime(function (topic) {
         if (topic === "switch") return null;
         if (topic === "switch:0") return { output: false };
@@ -245,7 +245,7 @@ test("reruns discovery after an eligible configuration change", function () {
     runDiscoveryCycle(runtime);
     let publishesBefore = runtime.discoveryPublishes().length;
 
-    runtime.fireConfigChanged("sys", false);
+    runtime.fireConfigChanged("mqtt", false);
     runtime.runTimers(8, function (timer) { return timer.interval === 500; });
 
     assert.ok(runtime.discoveryPublishes().length > publishesBefore);
@@ -284,7 +284,6 @@ test("does not restart discovery for ignored configuration changes", function ()
     let publishesBefore = runtime.discoveryPublishes().length;
 
     runtime.fireConfigChanged("switch", true);
-    runtime.fireConfigChanged("mqtt", false);
     runtime.runTimers(8, function (timer) { return timer.interval === 500; });
 
     assert.equal(runtime.discoveryPublishes().length, publishesBefore);

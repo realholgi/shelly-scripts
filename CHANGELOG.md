@@ -1,4 +1,8 @@
 # Changelog
+## Unreleased
+* `mqtt-discovery-self`
+  - reruns discovery when the Shelly MQTT configuration changes, refreshing discovery and initial status data under the new topic prefix.
+
 ## v5.2.0
 * `mqtt-energy-counter`
   - uses the Shelly MAC address as its Home Assistant MQTT Discovery device identifier, so its entities join the device created by `mqtt-discovery-self`.

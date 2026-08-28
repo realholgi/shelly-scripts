@@ -611,7 +611,7 @@ Shelly.addEventHandler(
         if (typeof (event) === 'undefined' || !event.info) return;
         if (event.info.event == "config_changed" &&
           !event.info.restart_required &&
-          (COMPONENT_TYPES.indexOf(event.name) !== -1 || event.name == 'sys')) {
+          (COMPONENT_TYPES.indexOf(event.name) !== -1 || event.name == 'sys' || event.name == 'mqtt')) {
           onMQTTConnected();
         }
     }
