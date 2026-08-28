@@ -289,3 +289,50 @@ test("does not restart discovery for ignored configuration changes", function ()
 
     assert.equal(runtime.discoveryPublishes().length, publishesBefore);
 });
+
+test("uses the total field for returned phase energy discovery", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "em") return null;
+        if (topic === "em:0") return { a_act_ret_energy: { total: 12 } };
+        return undefined;
+    });
+
+    runDiscoveryCycle(runtime);
+
+    let payload = runtime.entityPayload(
+        "homeassistant/sensor/" + mac + "/em0-a_act_ret_energy/config"
+    );
+    assert.equal(payload.dev_cla, "energy");
+    assert.equal(payload.stat_cla, "total_increasing");
+    assert.equal(payload.val_tpl, "{{ value_json.a_act_ret_energy.total }}");
+});
+
+test("cleans obsolete output domains before publishing an alternate light entity", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "switch") return null;
+        if (topic === "switch:0") return { output: true };
+        return undefined;
+    }, {
+        componentConfig: function (topic) {
+            if (topic === "sys") {
+                return { ui_data: { consumption_types: ["light"] } };
+            }
+            return undefined;
+        }
+    });
+
+    runDiscoveryCycle(runtime);
+
+    let suffix = "/" + mac + "/switch0-output/config";
+    let cleanupPublishes = runtime.publishes.filter(function (publish) {
+        return publish.topic.endsWith(suffix) && publish.payload === "";
+    });
+    assert.deepEqual(
+        cleanupPublishes.map(function (publish) { return publish.topic.split("/")[1]; }).sort(),
+        ["cover", "light", "switch"]
+    );
+
+    let payload = runtime.entityPayload("homeassistant/light" + suffix);
+    assert.equal(payload.cmd_t, "shelly-test/command/switch:0");
+    assert.equal(payload.dev_cla, "light");
+});

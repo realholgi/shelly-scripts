@@ -194,3 +194,34 @@ test("rejects wildcard characters in the discovery topic prefix", function () {
     ));
     assert.equal(runtime.discoveryPublishes().length, 0);
 });
+
+test("resets invalid persisted counter values before integrating", function () {
+    let runtime = createCounterRuntime({
+        transform: function (source) {
+            return source.replace("saveInterval: 900", "saveInterval: 1");
+        },
+        kvsValues: {
+            EnergyConsumedKWh: "not a number",
+            EnergyReturnedKWh: "NaN"
+        }
+    });
+
+    runtime.tick(1000, 100);
+    runtime.tick(2000, 100);
+
+    assert.equal(runtime.latestKvsValue("EnergyConsumedKWh"), "0.000028");
+    assert.equal(runtime.latestKvsValue("EnergyReturnedKWh"), "0.000000");
+});
+
+test("clamps clock jumps to one configured update interval", function () {
+    let runtime = createCounterRuntime({
+        transform: function (source) {
+            return source.replace("saveInterval: 900", "saveInterval: 1");
+        }
+    });
+
+    runtime.tick(1000, 100);
+    runtime.tick(9000, 100);
+
+    assert.equal(runtime.latestKvsValue("EnergyConsumedKWh"), "0.000028");
+});
