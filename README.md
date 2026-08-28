@@ -71,10 +71,10 @@ https://raw.githubusercontent.com/realholgi/shelly-scripts/main/scripts/manifest
 
 ## Testing
 
-The MQTT energy counter has a mocked Shelly runtime test suite. Run it with Node.js:
+The MQTT energy counter and self-discovery scripts have mocked Shelly runtime test suites. Run them with Node.js:
 
 ```sh
-node --test tests/mqtt-energy-counter.test.js
+node --test tests/*.test.js
 ```
 
 
