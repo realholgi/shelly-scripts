@@ -449,7 +449,6 @@ function mqttDiscovery() {
     report_arr = null;
     report_arr_idx = 0;
     comp_inst_num = null;
-    isProcessing = false;
     return true;
   }
 
