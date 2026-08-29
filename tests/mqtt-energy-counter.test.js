@@ -68,9 +68,6 @@ test("announces energy sensors under the physical Shelly device identity", funct
         unit_of_meas: "kWh",
         dev_cla: "energy",
         stat_cla: "total_increasing",
-        avty_t: "shellypro3em-test/online",
-        pl_avail: "true",
-        pl_not_avail: "false",
         dev: {
             ids: ["b8d62ef00f42"],
             cns: [["mac", "b8d62ef00f42"]],

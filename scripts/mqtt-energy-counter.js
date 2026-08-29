@@ -1,6 +1,6 @@
 /**
  * MQTT Shelly Pro 3EM - Net Metering & Home Assistant Auto-Discovery
- * Version: 5.2.5
+ * Version: 5.2.6
  *
  * based on Version: 1.2.0 from https://gist.github.com/mlossin/79e1b29eba6a48466b9078be254a384f
  */
@@ -19,7 +19,7 @@ let CONFIG = {
                                  //      "Shelly Keller" (keep it short, <25 chars)
 };
 
-let VERSION = "5.2.5";
+let VERSION = "5.2.6";
 let SHELLY_ID = null;
 let SHELLY_MAC = null;
 let DEVICE_NAME = null;
@@ -174,7 +174,6 @@ function AnnounceHA() {
     if (!SHELLY_ID || !DEVICE_NAME) return;
 
     let haTopic = CONFIG.mqttPrefix + "/sensor/" + SHELLY_ID;
-    let avtyTopic = SHELLY_ID + "/online";
 
     let dev = {
         "ids": [SHELLY_MAC],
@@ -193,9 +192,6 @@ function AnnounceHA() {
             "unit_of_meas": "kWh",
             "dev_cla": "energy",
             "stat_cla": "total_increasing",
-            "avty_t": avtyTopic,
-            "pl_avail": "true",
-            "pl_not_avail": "false",
             "dev": dev
         }),
         0, true
@@ -210,9 +206,6 @@ function AnnounceHA() {
             "unit_of_meas": "kWh",
             "dev_cla": "energy",
             "stat_cla": "total_increasing",
-            "avty_t": avtyTopic,
-            "pl_avail": "true",
-            "pl_not_avail": "false",
             "dev": dev
         }),
         0, true
@@ -229,9 +222,6 @@ function AnnounceHA() {
                 "unit_of_meas": "W",
                 "dev_cla": "power",
                 "stat_cla": "measurement",
-                "avty_t": avtyTopic,
-                "pl_avail": "true",
-                "pl_not_avail": "false",
                 "dev": dev
             }),
             0, true

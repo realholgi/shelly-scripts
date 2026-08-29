@@ -1,6 +1,6 @@
 /**
  * MQTT Discovery for Self
- * Version: 5.2.5
+ * Version: 5.2.6
  */
 
 let CONFIG = {

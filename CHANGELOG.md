@@ -1,5 +1,9 @@
 # Changelog
 
+## v5.2.6
+* `mqtt-energy-counter`
+  - removes the unavailable MQTT availability topic from discovery payloads.
+
 ## v5.2.5
 * `mqtt-discovery-self`
   - republishes Pro 3EM `emdata:0` status every second, keeping total returned active energy current.
