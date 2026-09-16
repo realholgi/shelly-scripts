@@ -96,6 +96,13 @@ test("publishes switch and temperature discovery with device identity", function
     assert.equal(temperaturePayload.name, "Temperature");
     assert.equal(temperaturePayload.unit_of_meas, "°C");
     assert.equal(temperaturePayload.val_tpl, "{{ value_json.tC }}");
+    assert.equal(
+        runtime.publishes.some(function (publish) {
+            return publish.topic === "homeassistant/sensor/" + mac + "/temperature0-tC/config" &&
+                publish.payload === "";
+        }),
+        false
+    );
 });
 
 test("reports energy phases, disables minor entities, and publishes initial data", function () {
@@ -301,7 +308,7 @@ test("uses the total field for returned phase energy discovery", function () {
     assert.equal(payload.val_tpl, "{{ value_json.a_act_ret_energy }}");
 });
 
-test("cleans obsolete output domains before publishing an alternate light entity", function () {
+test("cleans only obsolete output domains before publishing an alternate light entity", function () {
     let runtime = createDiscoveryRuntime(function (topic) {
         if (topic === "switch") return null;
         if (topic === "switch:0") return { output: true };
@@ -323,7 +330,7 @@ test("cleans obsolete output domains before publishing an alternate light entity
     });
     assert.deepEqual(
         cleanupPublishes.map(function (publish) { return publish.topic.split("/")[1]; }).sort(),
-        ["cover", "light", "switch"]
+        ["cover", "switch"]
     );
 
     let payload = runtime.entityPayload("homeassistant/light" + suffix);

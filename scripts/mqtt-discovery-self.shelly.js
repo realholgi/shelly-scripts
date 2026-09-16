@@ -1,6 +1,6 @@
 /**
  * MQTT Discovery for Self
- * Version: 5.2.7
+ * Version: 5.2.8
  */
 
 let CONFIG = {
@@ -502,13 +502,13 @@ function mqttDiscovery() {
   else doms = [data.domain];
 
   for (let dom of doms) {
-    let discoveryTopic  = CONFIG.discovery_topic + "/" + dom + "/" + info.mac + "/" + data.subtopic + "/config";
-    MQTT.publish(discoveryTopic, "", 1, true);
-
-    if (dom == data.domain) {
-      MQTT.publish(discoveryTopic, JSON.stringify(data.data), 1, true);
-    }
+    let discoveryTopic = CONFIG.discovery_topic + "/" + dom + "/" + info.mac + "/" + data.subtopic + "/config";
+    if (dom != data.domain) MQTT.publish(discoveryTopic, "", 1, true);
   }
+  MQTT.publish(
+    CONFIG.discovery_topic + "/" + data.domain + "/" + info.mac + "/" + data.subtopic + "/config",
+    JSON.stringify(data.data), 1, true
+  );
 
   if (comps.indexOf(info.topic) == -1 ) comps.push(info.topic);
 

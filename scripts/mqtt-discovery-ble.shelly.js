@@ -1,6 +1,6 @@
 /**
  * BLE passive scanner and MQTT gateway
- * Version: 5.2.7
+ * Version: 5.2.8
  * Detected devices will be automatically registered to HA/Domoticz using MQTT Autodiscovery.
  *
  * Quick instructions:
