@@ -1,6 +1,6 @@
 /**
  * MQTT Discovery: Scripts Monitor
- * Version: 5.2.6
+ * Version: 5.2.7
  */
 
 let CONFIG = {

@@ -1,5 +1,9 @@
 # Changelog
 
+## v5.2.7
+* `mqtt-discovery-self`
+  - skips publishing transiently incomplete Pro 3EM `emdata:0` status, preventing empty retained states that trip Home Assistant utility meters.
+
 ## v5.2.6
 * `mqtt-energy-counter`
   - removes the unavailable MQTT availability topic from discovery payloads.

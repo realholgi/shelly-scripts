@@ -1,6 +1,6 @@
 /**
  * MQTT Discovery for Self
- * Version: 5.2.6
+ * Version: 5.2.7
  */
 
 let CONFIG = {
@@ -415,6 +415,11 @@ function mqttPublishComponentData(component) {
 
     let status = Shelly.getComponentStatus(component);
     if (!status) return;
+
+    // Skip transiently incomplete emdata (device-side EM glitches): publishing it
+    // retained would push an empty state into Home Assistant utility meters.
+    if (component.indexOf("emdata") === 0 &&
+        (typeof status.total_act !== "number" || typeof status.total_act_ret !== "number")) return;
 
     let mqttConfig = Shelly.getComponentConfig("mqtt");
     if (!mqttConfig || !mqttConfig.topic_prefix) return;

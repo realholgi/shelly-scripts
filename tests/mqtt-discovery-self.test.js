@@ -350,7 +350,7 @@ test("publishes configured component status on the periodic refresh timer", func
 
 test("publishes total returned active energy every second on Pro 3EM", function () {
     let runtime = createDiscoveryRuntime(function (topic) {
-        if (topic === "emdata:0") return { total_act_ret: 123.45 };
+        if (topic === "emdata:0") return { total_act: 500.1, total_act_ret: 123.45 };
         return undefined;
     }, {
         deviceInfo: { ...deviceInfo, app: "Pro3EM" }
@@ -364,7 +364,26 @@ test("publishes total returned active energy every second on Pro 3EM", function 
     });
     assert.equal(publish.qos, 1);
     assert.equal(publish.retain, true);
-    assert.deepEqual(JSON.parse(publish.payload), { total_act_ret: 123.45 });
+    assert.deepEqual(JSON.parse(publish.payload), { total_act: 500.1, total_act_ret: 123.45 });
+});
+
+test("does not publish incomplete emdata status on Pro 3EM", function () {
+    let runtime = createDiscoveryRuntime(function (topic) {
+        if (topic === "emdata:0") return { total_act: 500.1 };
+        return undefined;
+    }, {
+        deviceInfo: { ...deviceInfo, app: "Pro3EM" }
+    });
+
+    runtime.setMqttConnected(true);
+    runtime.runTimers(1, function (timer) { return timer.interval === 1000; });
+
+    assert.equal(
+        runtime.publishes.some(function (publish) {
+            return publish.topic === "shelly-test/status/emdata:0";
+        }),
+        false
+    );
 });
 
 test("does not create the emdata timer on other devices", function () {
